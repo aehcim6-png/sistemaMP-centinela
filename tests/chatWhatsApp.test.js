@@ -436,4 +436,8 @@ describe('chatDesgasteTrabajos (cuchillas, calzas, entredientes…)', () => {
     const r = D(msg('31-03-26', '10:00', 'J', '- Equipo: CF-511\n- Estatus: operativo\n- Motivo: engrase y montaje de entre dientes\n- Horometro: 1378,1'), [], hist);
     expect(r[0].horomDudoso).toBe(true);
   });
+  it('un cambio de canillera (protector de balde) es la pieza Canilleras, no «Otro»', () => {
+    const r = D(msg('21-05-26', '10:00', 'C', '- Equipo: CF-510\n- Estatus: Operativo\n- Motivo: Relleno TK Grasa, Cambio Canillera Balde, Eliminación Fuga Hidraulica\n- Horometro: 14.546'));
+    expect(r.map(x => x.pieza)).toEqual(['Canilleras']);
+  });
 });

@@ -4459,13 +4459,13 @@ function interpretacionAjusteWeibull(r2){
 // Registro de cambios de los elementos de desgaste (cuchillas, puntas, entredientes, calzas, cantoneras, rodados…) que llevaba el taller en la planilla «Control GETS» y ahora vive en la tabla `gets_cambios`.
 // La vida real de cada pieza sale de los intervalos entre cambios consecutivos del mismo equipo. El EJE CONFIABLE ES LA FECHA: el horómetro de las planillas no coincide con las lecturas del sistema (p. ej. CF-510 el 6-ene-2023 dice 6.440 y el
 // sistema 3.263) y a veces retrocede, así que solo cuenta cuando no está marcado como dudoso. Sin registros recientes no se afirma qué cambio toca. La planilla llega hasta jun-2024, pero las OT del sistema traen los cambios posteriores, por eso se unen (ver getsUnir).
-var GETS_PIEZAS=['Cuchillas','Puntas','Entredientes','Calzas','Cantoneras','Deslizaderas','Zapatas','Pasadores','Ripper','Balde','Rodados','Elementos de desgaste (juego completo)','Otro'];
+var GETS_PIEZAS=['Cuchillas','Puntas','Entredientes','Calzas','Cantoneras','Deslizaderas','Zapatas','Pasadores','Canilleras','Ripper','Balde','Rodados','Elementos de desgaste (juego completo)','Otro'];
 var GETS_ESTADOS=['Al día','Próximo','Vencido','Sin registros recientes','Pocos datos'];
 var GETS_MIN_CAMBIOS=3;           // con menos de 3 cambios (2 intervalos) no se estima el próximo
 var GETS_PROXIMO_DIAS=7;          // «Próximo» = faltan 7 días o menos para el cambio estimado
 var GETS_RECIENTE_FACTOR=3;       // el último cambio es «reciente» si tiene menos de 3 veces el intervalo típico (y al menos 60 días de margen)
 // Pieza según el texto de la descripción: gana la PRIMERA que se menciona (en una OT larga, «cambio de entredientes y puntas» es de entredientes); si empatan, el orden de esta lista.
-var _GETS_PIEZA_RE=[['Elementos de desgaste (juego completo)',/elementos? de desgaste/],['Cuchillas',/cuchilla/],['Puntas',/punta/],['Entredientes',/entrediente|entrecalza/],['Calzas',/calza/],['Cantoneras',/cantonera/],['Deslizaderas',/deslizadera/],['Zapatas',/zapata/],['Pasadores',/pasador/],['Rodados',/rodado/],['Ripper',/ripper|riper|reaper|ripeer/],['Balde',/balde|gets/]];
+var _GETS_PIEZA_RE=[['Elementos de desgaste (juego completo)',/elementos? de desgaste/],['Cuchillas',/cuchilla/],['Puntas',/punta/],['Entredientes',/entrediente|entrecalza/],['Calzas',/calza/],['Cantoneras',/cantonera/],['Deslizaderas',/deslizadera/],['Zapatas',/zapata/],['Pasadores',/pasador/],['Rodados',/rodado/],['Canilleras',/canillera|protectores? (?:del? )?balde/],['Ripper',/ripper|riper|reaper|ripeer/],['Balde',/balde|gets/]];
 function getsPiezaDe(desc){
   var t=String(desc==null?'':desc).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   if(!t.trim())return'Otro';
@@ -4526,7 +4526,8 @@ var DESGASTE_PEDIR_PIEZAS={
   'Calzas':{rx:/calza|calsa|entre ?calza/},
   'Puntas':{rx:/punta/,sinRep:/seguro/},
   'Ripper':{rx:/ripper|riper|reaper/,sinRep:/punta|seguro|canillera|pasador/},
-  'Cantoneras':{rx:/cantonera/}
+  'Cantoneras':{rx:/cantonera/},
+  'Canilleras':{rx:/canillera|protectores? (?:del? )?balde/}
 };
 // Cuántas piezas lleva un cambio completo, por modelo (lo dijo el usuario el 23-nov-2026; si cambia, se corrige acá). «Puntas» = puntas del ripper.
 // Motoniveladora GD705: 2 cuchillas y 5 puntas de ripper. Cargador WA900: 15 entredientes (7 derechos, 7 izquierdos y 1 central) y 2 protectores de balde por lado (4). Bulldozer chico D65: 2 cuchillas, 2 cantoneras (1 por lado) y 3 puntas de ripper.
@@ -5755,13 +5756,13 @@ function _chatDesgastePiezas(txt){
   if(/(?:estatus|motivo)\s*:?\s*backlog/.test(n))return[];
   var NO=/reapriete|reaprete|apriete|backlog|favor|traslad|programar|posibilidad|evaluar|pendiente|dejar|veamos|se realizara|desgaste tornamesa/;
   var VERBO=/cambio|reposicion|instalacion|montaje|se cambia|se repone|cambiaron|instal/;
-  var PZ=[['Cuchillas',/cuchill|cambio hoja/],['Entredientes',/entre ?diente/],['Calzas',/calza|calsa/],['Elementos de desgaste (juego completo)',/elementos de desgaste/],['Otro',/elemento de desgaste|canillera/],['Puntas',/puntas? (?:de )?(?:reaper|riper|ripper)|reaper|riper/],['Cantoneras',/cantonera/]];
+  var PZ=[['Cuchillas',/cuchill|cambio hoja/],['Entredientes',/entre ?diente/],['Calzas',/calza|calsa/],['Elementos de desgaste (juego completo)',/elementos de desgaste/],['Otro',/elemento de desgaste/],['Canilleras',/canillera|protectores? (?:del? )?balde/],['Puntas',/puntas? (?:de )?(?:reaper|riper|ripper)|reaper|riper/],['Cantoneras',/cantonera/]];
   var out=[];
   n.split(/[,;\n]|\s-\s|\.\s/).forEach(function(seg){
     if(!VERBO.test(seg)||NO.test(seg))return;
     PZ.forEach(function(p){if(p[1].test(seg)&&out.indexOf(p[0])<0)out.push(p[0]);});
   });
-  if(out.indexOf('Elementos de desgaste (juego completo)')>=0&&out.indexOf('Otro')>=0&&!/canillera/.test(n))out.splice(out.indexOf('Otro'),1);
+  if(out.indexOf('Elementos de desgaste (juego completo)')>=0&&out.indexOf('Otro')>=0)out.splice(out.indexOf('Otro'),1);
   return out;
 }
 function _chatDesgasteFamilia(txt){

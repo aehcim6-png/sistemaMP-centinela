@@ -90,3 +90,22 @@ describe('desgasteUnidadesPorCambio (lo que lleva cada modelo)', () => {
     expect(u('Modelo desconocido', 'Cuchillas')).toBeNull();
   });
 });
+
+describe('canilleras (protectores de balde) — 23-nov-2026', () => {
+  const cF = [cambio('CF-9510', 'Canilleras', '2026-08-01'), cambio('CF-9510', 'Canilleras', '2026-09-20'), cambio('CF-9510', 'Canilleras', '2026-11-05')];
+  const eqF = [{ sigla: 'CF-9510', modelo: 'Komatsu WA900-8R' }];
+  const rep = [{ componente: 'Canillera Balde', equipo: 'WA900', stockActual: '', stockMinimo: '2' }, { componente: 'Canillera ripper', equipo: 'D375', stockActual: '3', stockMinimo: '1' }];
+  it('«protector de balde» y «canillera» son la misma pieza y llevan 4 por cambio completo en el WA900', () => {
+    expect(L.getsPiezaDe('cambio de canillera de balde')).toBe('Canilleras');
+    expect(L.getsPiezaDe('cambio de protectores de balde')).toBe('Canilleras');
+    expect(L.desgasteUnidadesPorCambio('Komatsu WA900-8R', 'Canilleras').n).toBe(4);
+  });
+  it('se proyecta como pieza propia; el stock vacío del modelo dice null y no mezcla la canillera del ripper de otro modelo', () => {
+    const r = L.desgastePedirAntes({ cambios: cF, hoy, plazoFn, equipos: eqF, repuestos: rep, compras: [] });
+    expect(r.filas.length).toBe(1);
+    expect(r.filas[0].pieza).toBe('Canilleras');
+    expect(r.filas[0].unidadesPorCambio).toBe(4);
+    expect(r.filas[0].stock).toBeNull();
+    expect(r.filas[0].filasStock).toBe(1);
+  });
+});
