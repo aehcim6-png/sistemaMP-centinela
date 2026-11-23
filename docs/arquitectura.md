@@ -7580,6 +7580,13 @@ Buscar es la pestaña donde se junta todo lo de un equipo; a quien no la conoce 
 - **Límite:** las etapas de aprobación (abastecimiento primero, luego subgerente, gerente o gerente general según el monto) no están en los datos: solo hay fecha de pedido, de OC firmada y de recepción. Queda pendiente la información del sistema de Besalco.
 - Prueba e2e: `tests/e2e/que-comprar-desgaste.spec.js`.
 
+### 254. Lubricantes en «Qué comprar»: programa de PM y rellenos por fallas (2026-11-23)
+
+El usuario señaló que el consumo de lubricantes debe salir del **programa** (qué PM toca a cada equipo cada mes) multiplicado por la **pauta** de cada PM, más lo no planificado (rellenos tras fallas). El cálculo anterior proyectaba los PM por horómetro y ritmo declarado de cada equipo, sin leer la tabla del programa anual.
+- **Planificado** (`demandaProgramaMes`, `logic.js`; pruebas `tests/lubricantesPrograma.test.js`): por mes desde el actual, cuenta los PM1–PM4 del programa y suma lo que lleva la pauta de cada uno por lubricante. Con los datos reales del 23-nov: noviembre 18 PM1, 5 PM2, 3 PM3 y 1 PM4; diciembre 13 PM1, 12 PM2, 6 PM3 y 1 PM4 (grasa ~112 y ~197 kg; 15W40 ~443 y ~539 L; HD 30 ~96 y ~556 L). El programa solo trae el tipo de PM de los meses por ejecutar (los ejecutados dicen «EJEC»), y 39 celdas de meses pasados siguen con PM sin marcar ejecutado: no se cuentan y se avisa.
+- **Por fallas** (`lubricanteCantidadesDeTexto`, `lubricanteNoPlanificado`): lee los textos de las OT con cantidad y unidad pegada a un lubricante; promedio mensual de 12 y de 36 meses. Las OT con cantidades son sobre todo de 2022–2024: el texto de las OT recientes casi no trae cantidades, por eso se muestran las dos ventanas y la fecha de la OT más reciente con cantidad.
+- **Límites:** el stock de los 13 lubricantes está en 0 en el sistema (hay que cargarlo); algunos lubricantes de la pauta (Mobilgrease XHP 222, Mobil Super 2000 10W40) no existen en la bodega y salen «sin vincular»; la cantidad de grasa de cada carga (30–60 kg) no se toma de los mensajes del chat porque casi no traen cantidad.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

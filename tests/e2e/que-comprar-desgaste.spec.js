@@ -25,7 +25,12 @@ test('«Qué comprar» muestra las cuchillas del equipo con pedir antes de, stoc
       ]);
       S.s('repuestos', [{ id: 'r1', componente: 'Cuchilla niveladora', nParte: '4T2233', equipo: 'GD705-5', stockActual: '12', stockMinimo: '6' }]);
       S.s('comprasDetalle', [{ sigla: 'MN-6112', fecha: f(15), detalle: 'Cuchilla 7x8x1 3/4 4t2233', cant: 6, costo: 900000, oc: 'x', estado: 'Recepcion Bodega', pedido: 'q', tiempoRespuesta: '12 dias 0h 0m' }]);
-      S.s('ot', []); S.s('otHist', []); S.s('stk', []); S.s('lub', []); S.s('neu', []); S.s('pau', []); S.s('mapaRep', []);
+      const MES = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+      S.s('prg', [{ _id: 'g1', sigla: 'MN-6112', meses: { [MES[new Date().getUTCMonth()]]: 'PM2' } }]);
+      S.s('pau', [{ _id: 'pa1', sigla: 'MN-6112', hoja: 'h', pm: 'PM1', rep: 'Mobilgrease XHP 322 Mine', can: 12 }]);
+      S.s('lub', [{ _id: 'lu1', nombre: 'MOBILGREASE XHP 322 MINE', unidad: 'Kilo', stock: 0, consumoMes: 0 }]);
+      S.s('mapaRep', [{ pautaId: 'pa1', tipo: 'lubricante', refId: 'lu1' }]);
+      S.s('ot', []); S.s('otHist', [{ id: 'oh1', sigla: 'CF-9510', fecha: f(40), descripcion: 'Se realiza relleno de depósito de grasa (50kg)', observacion: '' }]); S.s('stk', []); S.s('neu', []);
     };
     sembrar(); go('stk2');
     for (let i = 0; i < 100 && typeof window.queComprar !== 'function'; i++) await esp(100);
@@ -38,4 +43,8 @@ test('«Qué comprar» muestra las cuchillas del equipo con pedir antes de, stoc
   expect(texto).toContain('Cuchillas');
   expect(texto).toContain('Pedir antes de');
   expect(texto).toContain('6 un');
+  expect(texto).toContain('Lubricantes según el programa de PM');
+  expect(texto).toContain('MOBILGREASE XHP 322 MINE');
+  expect(texto).toContain('Rellenos por fallas y fugas');
+  expect(texto).toContain('Grasa');
 });

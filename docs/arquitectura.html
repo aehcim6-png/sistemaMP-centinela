@@ -3979,6 +3979,14 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
     <li><b>Límite:</b> las etapas de aprobación (abastecimiento primero, luego subgerente, gerente o gerente general según el monto) no están en los datos; queda pendiente la información del sistema de Besalco.</li>
   </ul>
 
+  <h3 id="d-254">254. Lubricantes en «Qué comprar»: programa de PM y rellenos por fallas (2026-11-23)</h3>
+  <p>El consumo de lubricantes sale del <b>programa</b> (qué PM toca a cada equipo cada mes) × la <b>pauta</b> de cada PM, más lo no planificado. Antes se proyectaban los PM por horómetro, sin leer el programa anual.</p>
+  <ul>
+    <li><b>Planificado</b> (<code>demandaProgramaMes</code>): PM1–PM4 por mes desde el actual y lo que lleva cada pauta por lubricante. Con los datos del 23-nov: noviembre 18 PM1, 5 PM2, 3 PM3, 1 PM4; diciembre 13 PM1, 12 PM2, 6 PM3, 1 PM4. 39 PM de meses pasados sin marcar ejecutados no se cuentan y se avisa.</li>
+    <li><b>Por fallas</b> (<code>lubricanteNoPlanificado</code>): cantidades de lubricante leídas de los textos de las OT, con promedio de 12 y 36 meses. Las OT con cantidades son sobre todo de 2022–2024.</li>
+    <li><b>Límites:</b> el stock de los 13 lubricantes está en 0; algunos lubricantes de la pauta no existen en la bodega («sin vincular»).</li>
+  </ul>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

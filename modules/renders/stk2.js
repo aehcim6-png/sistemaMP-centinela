@@ -67,7 +67,12 @@ function _queComprarEntrada() {
   const insumos = insumosResumen(S.g('ins') || [], S.g('insMov') || [], { hoy: new Date() }).filas;
   const getsC = getsUnir(S.g('getsCambios') || [], getsEventosDesdeOT(S.g('otHist') || [], S.g('ot') || []));
   const piezas = desgastePedirAntes({ cambios: getsC, hoy: new Date(), plazoFn: pe.n ? pe.para : null, equipos: eq, repuestos: S.g('repuestos') || [], compras: S.g('comprasDetalle') || [] });
-  return { plazoFn: pe.n ? pe.para : null, insumos, demanda, stk, lub, equipos: eq, neu: { items, stock, estimados, ultimaGlobal }, desgaste: proyeccionElementosDesgaste(S.g('ot') || [], eq), piezasDesgaste: piezas };
+  const mapaR = S.g('mapaRep') || [];
+  const lubPrograma = demandaProgramaMes(S.g('prg') || [], getPautasConsumo, stk, lub, mapaR, new Date());
+  const textosOT = (S.g('otHist') || []).map(o => ({ fecha: o.fecha, sigla: o.sigla, texto: (o.descripcion || '') + ' | ' + (o.observacion || '') }))
+    .concat((S.g('ot') || []).map(o => ({ fecha: o.fecha, sigla: o.sigla, texto: (o.sintoma || '') + ' | ' + (o.solucion || '') })));
+  const lubFallas = { w12: lubricanteNoPlanificado(textosOT, new Date(), 12), w36: lubricanteNoPlanificado(textosOT, new Date(), 36), ultimoTexto: textosOT.reduce((m, x) => (x.fecha && String(x.fecha) > m && lubricanteCantidadesDeTexto(x.texto).length ? String(x.fecha).slice(0, 10) : m), '') };
+  return { plazoFn: pe.n ? pe.para : null, insumos, demanda, stk, lub, equipos: eq, neu: { items, stock, estimados, ultimaGlobal }, desgaste: proyeccionElementosDesgaste(S.g('ot') || [], eq), piezasDesgaste: piezas, lubPrograma, lubFallas };
 }
 export function queComprar() {
   const fn2 = v => fn(Math.round(Number(v) || 0));
@@ -120,6 +125,28 @@ export function queComprar() {
       '<td style="text-align:center">' + stk + (x.alcanza === true ? '<div style="font-size:10px;color:var(--ok)">alcanza para 1 cambio</div>' : x.alcanza === false ? '<div style="font-size:10px;color:var(--danger)">faltan ' + fn2(x.faltan) + ' para 1 cambio</div>' : '') + '</td><td style="text-align:center">' + uc + '</td></tr>';
   };
   const cabDesg = '<th style="padding:5px;text-align:left">Equipo</th><th style="text-align:left">Pieza</th><th>Último cambio</th><th>Próximo cambio</th><th>Pedir antes de</th><th>Lleva (cambio completo)</th><th>Stock del modelo</th><th>Última compra</th>';
+  const mesNom = { ENE: 'Ene', FEB: 'Feb', MAR: 'Mar', ABR: 'Abr', MAY: 'May', JUN: 'Jun', JUL: 'Jul', AGO: 'Ago', SEP: 'Sep', OCT: 'Oct', NOV: 'Nov', DIC: 'Dic' };
+  const lubL = S.g('lub') || [];
+  const mesesPrg = ent.lubPrograma.meses;
+  const cabLubPrg = '<th style="padding:5px;text-align:left">Lubricante</th><th>Stock</th>' + mesesPrg.map(m => '<th>' + mesNom[m.etiqueta] + '</th>').join('') + '<th>Total</th>';
+  const idxs = Array.from(new Set([].concat.apply([], mesesPrg.map(m => Object.keys(m.lubricantes))))).sort((a, b) => (lubL[a] ? lubL[a].nombre : '').localeCompare(lubL[b] ? lubL[b].nombre : ''));
+  const filaPm = ['PM1', 'PM2', 'PM3', 'PM4'].map(pm => '<tr style="background:var(--bg3)"><td style="padding:5px"><b>' + pm + ' programados</b></td><td></td>' + mesesPrg.map(m => '<td style="text-align:center">' + m.pm[pm] + '</td>').join('') + '<td style="text-align:center">' + mesesPrg.reduce((t, m) => t + m.pm[pm], 0) + '</td></tr>');
+  const filasLubPrg = filaPm.concat(idxs.map(i => {
+    const l = lubL[i] || {}, tot = mesesPrg.reduce((t, m) => t + (m.lubricantes[i] || 0), 0), stk0 = Number(l.stock) || 0;
+    return '<tr style="border-bottom:1px solid var(--bd)"><td style="padding:5px"><b>' + escapeHtml(l.nombre || '(sin nombre)') + '</b> <span style="font-size:10px;color:var(--tx3)">' + escapeHtml(l.unidad || '') + '</span></td>' +
+      '<td style="text-align:center">' + (stk0 > 0 ? fn2(stk0) : '<span style="color:var(--danger)" title="El stock está en 0 o sin cargar">0</span>') + '</td>' +
+      mesesPrg.map(m => '<td style="text-align:center">' + (m.lubricantes[i] ? fn2(m.lubricantes[i]) : '<span style="color:var(--tx3)">—</span>') + '</td>').join('') +
+      '<td style="text-align:center;font-weight:700;color:var(--ac)">' + fn2(tot) + '</td></tr>';
+  }));
+  const sv = {};
+  mesesPrg.forEach(m => Object.keys(m.sinVincular).forEach(k => { sv[k] = (sv[k] || 0) + m.sinVincular[k]; }));
+  if (Object.keys(sv).length) filasLubPrg.push('<tr><td colspan="' + (mesesPrg.length + 3) + '" style="padding:6px;font-size:10px;color:var(--w)">Sin vincular a un lubricante de la bodega (no se suman arriba): ' + Object.keys(sv).map(k => escapeHtml(k) + ' (' + fn2(sv[k]) + ')').join(' · ') + '</td></tr>');
+  const f12 = {}, f36 = {};
+  ent.lubFallas.w12.filas.forEach(r => { f12[r.clase] = r; }); ent.lubFallas.w36.filas.forEach(r => { f36[r.clase] = r; });
+  const filasFallas = Array.from(new Set(Object.keys(f12).concat(Object.keys(f36)))).sort((a, b) => ((f36[b] || {}).total || 0) - ((f36[a] || {}).total || 0)).map(k => {
+    const a = f12[k], b = f36[k], u = (a || b).unidad;
+    return '<tr style="border-bottom:1px solid var(--bd)"><td style="padding:5px"><b>' + escapeHtml(k) + '</b> <span style="font-size:10px;color:var(--tx3)">' + u + '</span></td><td style="text-align:center">' + (a ? a.eventos : 0) + '</td><td style="text-align:center">' + (a ? fn2(a.total) : 0) + '</td><td style="text-align:center;font-weight:700;color:var(--ac)">' + (a ? fn(Math.round(a.promedioMensual * 10) / 10) : 0) + '</td><td style="text-align:center">' + (b ? fn2(b.total) : 0) + '</td><td style="text-align:center">' + (b ? fn(Math.round(b.promedioMensual * 10) / 10) : 0) + '</td></tr>';
+  });
   const kpi = h => { const t = r.totales[h.clave]; return '<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:var(--tx3)">' + h.etiqueta + '</div><b style="font-size:18px">$' + fn2(t.costo) + '</b><div style="font-size:9px;color:var(--tx3)">' + 'filtros ' + t.filtros + ' · lubricantes ' + t.lubricantes + ' · neumáticos ' + t.neumaticos + ' · insumos ' + t.insumos + (t.sinPrecio ? ' · ' + t.sinPrecio + ' sin precio' : '') + '</div></div>'; };
   const avisosPz = (ent.piezasDesgaste && ent.piezasDesgaste.avisos) || [];
   r.avisos = r.avisos.concat(avisosPz.map(t => ({ texto: t })));
@@ -130,6 +157,8 @@ export function queComprar() {
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:14px">' + H.map(kpi).join('') + '</div>' +
     tabla('Filtros', 'Lo mayor entre lo que consumen los PM programados de la flota y el consumo histórico del ítem; no se suman porque el histórico ya incluye PM pasados.', cabIns, r.filtros.map(filaIns)) +
     tabla('Lubricantes', 'Mismo criterio que los filtros; las cantidades van en la unidad del lubricante.', cabIns, r.lubricantes.map(filaIns)) +
+    tabla('Lubricantes según el programa de PM (mes a mes)', 'Del programa anual: qué PM toca a cada equipo cada mes × lo que lleva la pauta de ese PM. Es consumo planificado, no una estimación. El día exacto no está en el programa (se usa mitad de mes). ' + (ent.lubPrograma.atrasados.length ? '<b>Ojo:</b> hay ' + ent.lubPrograma.atrasados.length + ' PM de meses pasados que el programa no marca como ejecutados; no se cuentan (podrían estar hechos sin marcar).' : ''), cabLubPrg, filasLubPrg) +
+    tabla('Rellenos por fallas y fugas (de los textos de las OT)', 'Lo que NO trae el programa: relleno de aceite hidráulico tras cortes de flexible, aceite de motor, grasa del depósito, etc., con la cantidad que dice cada OT. Solo cuenta lo que trae número y unidad; las OT sin cantidad no suman. Las OT con cantidades más recientes son del ' + (ent.lubFallas.ultimoTexto ? fch2(ent.lubFallas.ultimoTexto) : '—') + '.', '<th style="padding:5px;text-align:left">Lubricante</th><th>Eventos 12 m</th><th>Total 12 m</th><th>Prom./mes 12 m</th><th>Total 36 m</th><th>Prom./mes 36 m</th>', filasFallas) +
     tabla('Neumáticos', 'Los que la proyección de desgaste da por cambiados en cada plazo (los vencidos entran en los tres) menos los de esa medida en Existencias. No incluye el segundo cambio de un mismo neumático dentro del año.', cabNeu, r.neumaticos.map(filaNeu)) +
     tabla('Insumos generales (EPP, librería, limpieza, desgaste, baterías…)', 'Del stock de insumos con kardex: el consumo de los últimos 90 días proyectado a cada plazo, más el stock crítico, menos el saldo' + (r.insumosCubiertos ? ' (' + r.insumosCubiertos + ' ya cubiertos para todo el año)' : '') + '. Con el kardex vacío no hay consumo y no se puede proyectar.', cabIns2, r.insumos.map(filaInsumo)) +
     tabla('Piezas de desgaste por equipo (cuchillas, entredientes, calzas, puntas de ripper, cantoneras)', 'Del registro de Elementos de desgaste (planilla, chat y OT): <b>pedir antes de</b> = próximo cambio estimado − plazo de entrega real. El <b>stock</b> es el del modelo del equipo en Repuestos (no por equipo). <b>Lleva</b> es la cantidad de piezas de un cambio completo según el modelo (dato del taller); en la práctica a veces se cambian solo algunas. La <b>última compra</b> es referencia de lo que se pidió.', cabDesg, (r2.filas || []).map(filaPza)) +
