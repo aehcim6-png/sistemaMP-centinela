@@ -3972,7 +3972,8 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <ul>
     <li><b>Cálculo</b> (<code>desgastePedirAntes</code>): próximo cambio estimado por equipo y pieza (planilla + chat + OT) menos el plazo de entrega real de las compras (banda según el monto de la última compra), y aparte con el peor caso razonable.</li>
     <li><b>Stock:</b> el de Repuestos por modelo; si no hay cargado, dice «sin stock cargado».</li>
-    <li><b>Última compra:</b> cantidad y fecha, solo como referencia (no se sabe cuántas piezas lleva cada cambio).</li>
+    <li><b>Cuántas piezas lleva un cambio completo</b> (dato del taller): GD705 2 cuchillas y 5 puntas de ripper; WA900 15 entredientes (7 derechos, 7 izquierdos y 1 central) y 4 protectores de balde; D65 2 cuchillas, 2 cantoneras y 3 puntas de ripper; D375 4 cuchillas, 2 cantoneras y 1 ripper. Se compara con el stock del modelo («alcanza para 1 cambio» o «faltan N»). En la práctica a veces se cambian solo algunas.</li>
+    <li><b>Última compra:</b> cantidad y fecha, solo como referencia de lo que se pidió.</li>
     <li><b>Sin fecha:</b> si el último cambio registrado es antiguo, no se inventa fecha.</li>
     <li><b>Límite:</b> las etapas de aprobación (abastecimiento primero, luego subgerente, gerente o gerente general según el monto) no están en los datos; queda pendiente la información del sistema de Besalco.</li>
   </ul>

@@ -60,4 +60,33 @@ describe('desgastePedirAntes', () => {
     expect(r4.filas[0].plazo.supuesto).toBe(true);
     expect(r4.avisos.join(' ')).toContain('supuesto');
   });
+
+  it('trae cuántas piezas lleva un cambio completo según el modelo y si el stock del modelo alcanza', () => {
+    const f = r.filas.find(x => x.sigla === 'MN-6112');
+    expect(f.unidadesPorCambio).toBe(2);
+    expect(f.alcanza).toBe(true);   // 16 en stock del modelo vs 2 cuchillas
+    const r5 = L.desgastePedirAntes({ cambios, hoy, plazoFn, equipos, repuestos: [{ componente: 'Cuchilla niveladora', equipo: 'GD705-5', stockActual: '1', stockMinimo: '6' }], compras: [] });
+    expect(r5.filas[0].alcanza).toBe(false);
+    expect(r5.filas[0].faltan).toBe(1);
+  });
+});
+
+describe('desgasteUnidadesPorCambio (lo que lleva cada modelo)', () => {
+  const u = (m, p) => L.desgasteUnidadesPorCambio(m, p);
+  it('motoniveladora, cargador y los dos bulldozer', () => {
+    expect(u('Komatsu GD-705-5', 'Cuchillas').n).toBe(2);
+    expect(u('Komatsu GD-705-5', 'Puntas').n).toBe(5);
+    expect(u('Komatsu WA900-8R', 'Entredientes').n).toBe(15);
+    expect(u('Komatsu WA900-8R', 'Canilleras').n).toBe(4);
+    expect(u('Komatsu D65EX-18E0', 'Cuchillas').n).toBe(2);
+    expect(u('Komatsu D65EX-18E0', 'Cantoneras').n).toBe(2);
+    expect(u('Komatsu D65EX-18E0', 'Puntas').n).toBe(3);
+    expect(u('Komatsu D375A-6R', 'Cuchillas').n).toBe(4);
+    expect(u('Komatsu D375A-6R', 'Cantoneras').n).toBe(2);
+    expect(u('Komatsu D375A-6R', 'Puntas').n).toBe(1);
+  });
+  it('lo que no se sabe es null (no se inventa)', () => {
+    expect(u('Komatsu WA900-8R', 'Cuchillas')).toBeNull();
+    expect(u('Modelo desconocido', 'Cuchillas')).toBeNull();
+  });
 });
