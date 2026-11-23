@@ -7512,6 +7512,15 @@ En un celular de 320 a 411 px la cabecera (marca + 7 íconos de 44 px = 308 px) 
 - **Pestañas:** TBO (gasto por familia, cruces y precios de repuesto) la usan para clasificar; Costos la muestra como texto emergente en «Pedidos potencialmente trabados» y en el aviso de montos sospechosos.
 - **Límite:** la descripción es del pedido, no de cada línea; un pedido de cinco líneas tiene un solo texto.
 
+### 246. Compras e instalaciones por ítem en Buscar (2026-11-23)
+
+**Origen:** el usuario pidió poder buscar, en un equipo, cuántas veces se cambió un ítem (alternador, cinturón de seguridad, asiento…), en qué fecha y cuándo toca de nuevo. Una compra no prueba que el repuesto se instaló: hay que cruzarla con lo instalado. Y el mismo repuesto aparece con nombres distintos según quién lo pidió: de cinturón de seguridad el Historial de componentes tiene 0 cambios y las compras lo traen como «Seat Belt 5615781410» (10 líneas, en inglés) o «Cinturon De Seguridad…».
+- **Buscar → Compras e instalaciones por ítem:** al elegir un equipo, un buscador de ítem (lista con el vocabulario o texto libre). Muestra por cada compra la fecha del pedido, la recepción, el horómetro estimado a esa fecha, el detalle (con la descripción completa del pedido como texto emergente), OC, cantidad, costo y estado, y su **instalación**: la primera evidencia en los 180 días siguientes (Historial de componentes, o una OT cuyo texto diga cambio / instalación / reemplazo). Si no hay, dice «sin evidencia». Las OT que mencionan el ítem sin decir que se cambió (por ejemplo «equipo detenido por no contar con cinturón de 3 puntas») se muestran como «OT / historial cercano». Los cambios del historial sin compra visible se listan aparte.
+- **Vocabulario** (`COMPRAS_VOCAB`, logic.js): cinturón (cinturón, seat belt, safety belt, 3 puntas, retractor), asiento, alternador, motor de partida / starter, radiador / core, enfriador / oil cooler, cuchillas y dientes, rodillos, cadenas, pasadores / bujes, orbitrol. Todo se compara sin tildes ni mayúsculas y cada ítem tiene exclusiones (el carrete retráctil de grasa o la caja termorretráctil no son cinturón). Un texto que no está en el vocabulario se busca como subcadena.
+- **Próximo cambio:** `comprasProximoCambio` usa solo intervalos medidos entre cambios del mismo ítem (horas de operación), de este equipo o, si tiene menos de 3, de los equipos del mismo modelo. Con menos de 3 intervalos no da fecha y dice cuántos faltan. Estima los días con las horas por día del equipo.
+- **Límites:** la instalación se infiere del texto de las OT y del Historial; una OT que no nombre el ítem no se ve. Los horómetros de compra son estimados (≈) con las lecturas del equipo. Solo lectura: no escribe nada en la base.
+- **Archivos:** `comprasEquipoItem`, `comprasProximoCambio`, `comprasItemMatcher` en logic.js; `_buscarComprasItemHTML` en `modules/renders/buscar.js`; pruebas `tests/comprasEquipoItem.test.js` y `tests/e2e/buscar-compras-item.spec.js`.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

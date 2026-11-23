@@ -13,6 +13,46 @@ function _buscarMM(n){var t=Math.round((n||0)/1e5);return '$'+fn(Math.floor(t/10
 function _buscarPeso(n){return '$'+fn(Math.round(n||0));}
 // Montos chicos en pesos y grandes en millones, para que una pérdida esperada de $22.000 no se vea como "$0,0 M".
 function _buscarMonto(n){return Math.abs(n||0)<1e6?_buscarPeso(n):_buscarMM(n);}
+// ═══ COMPRAS DEL EQUIPO POR ÍTEM (23-nov-2026) ═══
+// Buscador por ítem (alternador, cinturón, asiento… o texto libre) dentro del equipo elegido: cuántas veces se compró, cuándo, cuánto, y cuándo se instaló según el Historial de componentes o el texto de
+// las OT. La lógica (vocabulario es/en, cruce, intervalos) está en logic.js → comprasEquipoItem / comprasProximoCambio. Solo lectura.
+function _buscarComprasItemHTML(sigla){
+  if(typeof comprasEquipoItem!=='function')return '';
+  var inp=$('fBuscarItem'),item=inp?inp.value:'';
+  var hoyISO=new Date().toISOString().slice(0,10);
+  var eqs=S.g('eq')||[],eq=eqs.filter(function(e){return e.sigla===sigla;})[0];
+  var lect={};(S.g('hist')||[]).forEach(function(r){if(r&&r.sigla&&r.fecha&&r.horom!=null)(lect[r.sigla]=lect[r.sigla]||[]).push({fecha:String(r.fecha).slice(0,10),horom:Number(r.horom)});});
+  function horomFnDe(e){return function(f){if(!e)return null;try{var x=horomEnFecha(lect[e.sigla]||[],f,e.horomActual||0,hoyISO,e.hrsDia||12,e.inicioOper||null);return x&&x.horom!=null?Math.round(x.horom):null;}catch(er){return null;}};}
+  var compras=(S.g('comprasDetalle')||[]).concat(S.g('ocHist')||[]);
+  var ot=S.g('ot')||[],ch=S.g('compHist')||[];
+  var dl='<datalist id="dlBuscarItem">'+COMPRAS_VOCAB.map(function(v){return '<option value="'+escapeHtml(v.nombre)+'">';}).join('')+'</datalist>';
+  var cab='<div class="chart-box" style="margin-bottom:12px"><div class="chart-t">Compras e instalaciones por ítem</div>'+
+    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><input id="fBuscarItem" list="dlBuscarItem" value="'+escapeHtml(item)+'" placeholder="Ítem: alternador, cinturón (seat belt), asiento… o escribe otro" onchange="renders.buscar()" style="min-width:280px">'+dl+
+    '<span style="font-size:11px;color:var(--tx3)">Busca en español, inglés y nombres técnicos. Una compra no prueba que se instaló: se cruza con el Historial de componentes y con las OT.</span></div>';
+  if(!String(item).trim())return cab+'<div style="padding:8px;color:var(--tx3);font-size:12px">Escribe o elige un ítem para ver cuántas veces se compró y cuándo se instaló en este equipo.</div></div>';
+  var res=comprasEquipoItem({sigla:sigla,item:item,compras:compras,ot:ot,compHist:ch,horomFn:horomFnDe(eq)});
+  if(!res)return cab+'</div>';
+  var rs=res.resumen;
+  // intervalos de los demás equipos del mismo modelo (para estimar el próximo cambio cuando este equipo tiene pocos)
+  var otros=eqs.filter(function(e){return eq&&e.sigla!==sigla&&e.modelo===eq.modelo;}).map(function(e){return comprasEquipoItem({sigla:e.sigla,item:item,compras:compras,ot:ot,compHist:ch,horomFn:horomFnDe(e)});}).filter(Boolean);
+  var pr=comprasProximoCambio(res,otros,eq?eq.horomActual:0,eq?eq.hrsDia:12,3);
+  var resumen='<div style="font-size:12px;margin-bottom:8px"><b>'+escapeHtml(res.item)+'</b>: '+rs.lineas+' línea(s) de compra ('+fn(rs.unidades)+' u., '+_buscarMonto(rs.gasto)+'); '+rs.conInstalacion+' con instalación comprobada, '+rs.sinEvidencia+' sin evidencia de instalación'+
+    (rs.cambiosSinCompra?'; '+rs.cambiosSinCompra+' cambio(s) registrado(s) sin compra visible':'')+'.</div>';
+  var filas=res.filas.map(function(f){
+    var ins=f.instalacion?'<b>'+escapeHtml(f.instalacion.fecha)+'</b> · '+escapeHtml(f.instalacion.fuente)+(f.instalacion.dias!=null?' · '+f.instalacion.dias+' d tras la recepción':'')+
+      (f.instalacion.horom!=null?' · '+(f.instalacion.horomEstimado?'≈':'')+fn(f.instalacion.horom)+' h':''):'<span style="color:var(--w)">sin evidencia</span>';
+    var rel=f.relacionadas.length?f.relacionadas.map(function(x){return escapeHtml(x.fecha)+' '+escapeHtml(x.texto).slice(0,70);}).join('<br>'):'';
+    var tt=f.descripcionPedido?' title="'+escapeHtml(f.descripcionPedido)+'"':'';
+    return '<tr><td>'+escapeHtml(f.fecha)+'</td><td>'+escapeHtml(f.ref&&f.ref!==f.fecha?f.ref:'—')+'</td><td class="mono">'+(f.horomCompra!=null?'≈'+fn(f.horomCompra):'—')+'</td><td'+tt+'>'+escapeHtml(f.detalle||'')+(f.esServicio?' <span style="font-size:10px;color:var(--tx3)">(servicio/reparación)</span>':'')+'</td><td class="mono">'+escapeHtml(f.oc||'')+'</td><td class="mono">'+fn(f.cant)+'</td><td class="mono">'+_buscarMonto(f.costo)+'</td><td style="font-size:10px">'+escapeHtml(f.estado||'')+'</td><td style="font-size:11px">'+ins+'</td><td style="font-size:10px;color:var(--tx2)">'+rel+'</td></tr>';
+  }).join('');
+  var sc=res.sinCompra.map(function(x){return '<tr><td colspan="8" style="color:var(--tx3);font-size:11px">Cambio registrado sin compra visible</td><td style="font-size:11px"><b>'+escapeHtml(x.fecha)+'</b> · '+escapeHtml(x.fuente)+(x.horom!=null?' · '+(x.horomEstimado?'≈':'')+fn(x.horom)+' h':'')+'</td><td style="font-size:10px;color:var(--tx2)">'+escapeHtml(x.texto).slice(0,80)+'</td></tr>';}).join('');
+  var tabla=(filas||sc)?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Pedido</th><th>Recepción</th><th>Horóm. compra</th><th>Detalle</th><th>OC</th><th>Cant.</th><th>Costo</th><th>Estado</th><th>Instalación</th><th>OT / historial cercano</th></tr>'+filas+sc+'</table></div>':
+    '<div style="padding:8px;color:var(--tx3);font-size:12px">Sin compras ni cambios registrados de «'+escapeHtml(res.item)+'» en este equipo.</div>';
+  var proy=pr.ok?'<div style="font-size:12px;margin-top:8px"><b>Próximo cambio (medido, no teórico):</b> con '+pr.n+' intervalos reales de '+escapeHtml(pr.origen)+' la mediana es de <b>'+fn(pr.medianaH)+' h</b> (entre '+fn(pr.minH)+' y '+fn(pr.maxH)+' h). '+
+      (pr.restanH!=null?'Desde el último cambio lleva '+fn(pr.horasDesdeUltimo)+' h: '+(pr.restanH>0?'faltan unas <b>'+fn(pr.restanH)+' h</b>'+(pr.restanDias!=null?' (≈ '+fn(pr.restanDias)+' días)':''):'ya pasó la mediana en <b>'+fn(-pr.restanH)+' h</b>')+'.':'')+'</div>':
+    '<div style="font-size:12px;margin-top:8px;color:var(--tx3)"><b>Próximo cambio:</b> '+escapeHtml(pr.motivo)+'. No se inventa una fecha con tan pocos datos.</div>';
+  return cab+resumen+tabla+proy+'</div>';
+}
 function _buscarFichasHTML(sigla){
   if(typeof tboFichasEquipo!=='function')return '';
   var ids;try{ids=function(k){return localStorage.getItem(k);};ids('x');}catch(e){ids=function(){return null;};}
@@ -350,6 +390,7 @@ export function renderBuscar(){
     (vencFilas.length?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Tipo</th><th>Última</th><th>Próxima</th><th>Estado</th></tr>'+
     vencFilas.map(function(t){var v=vencF[t];var est=vencEstado(v.proxima,v.periodicidadMeses!=null);return'<tr><td>'+escapeHtml(t)+'</td><td>'+(v.ultima||'—')+'</td><td>'+(v.proxima||'—')+'</td><td style="color:'+est.color+';font-size:10px">'+est.label+'</td></tr>'}).join('')+'</table></div>':'<div style="padding:10px;color:var(--tx3)">Sin vencimientos registrados</div>')+'</div>'+
 
+    _buscarComprasItemHTML(fEq)+
     // Historial de Componentes — cuánto duró cada instalación real (distinto de
     // Componentes Mayores de arriba, que solo muestra el estado ACTUAL).
     '<div class="chart-box" style="margin-bottom:12px"><div class="chart-t"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5.5 V10 l3 2" fill="none"/><circle cx="10" cy="10" r="7.5"/></svg> Historial de Componentes ('+compHistF.length+')</div>'+
