@@ -3984,6 +3984,7 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <ul>
     <li><b>Planificado</b> (<code>demandaProgramaMes</code>): PM1–PM4 por mes desde el actual y lo que lleva cada pauta por lubricante. Con los datos del 23-nov: noviembre 18 PM1, 5 PM2, 3 PM3, 1 PM4; diciembre 13 PM1, 12 PM2, 6 PM3, 1 PM4. 39 PM de meses pasados sin marcar ejecutados no se cuentan y se avisa.</li>
     <li><b>Por fallas</b> (<code>lubricanteNoPlanificado</code>): cantidades de lubricante leídas de los textos de las OT, con promedio de 12 y 36 meses. Las OT con cantidades son sobre todo de 2022–2024.</li>
+    <li><b>Lo realizado</b> está en las pestañas de ingreso de mantención (153 PM desde julio, ~30 a 38 por mes): cada PM «atrasado» del programa se marca como registrado si ese equipo tiene algún PM registrado desde ese mes. De 39, 14 lo tienen y 25 no.</li>
     <li><b>Límites:</b> el stock de los 13 lubricantes está en 0; algunos lubricantes de la pauta no existen en la bodega («sin vincular»).</li>
   </ul>
 

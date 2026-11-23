@@ -8187,9 +8187,9 @@ function demandaPlanificadaPM(equipos,consumosFn,stk,lub,mapaRep,hoy,horizonteDi
 // ── Lubricantes según el PROGRAMA de PM y según los rellenos por fallas (23-nov-2026) ──
 // El consumo planificado sale del programa anual (qué PM toca a cada equipo en cada mes) × la pauta de cada PM (cuánto lubricante lleva): es una multiplicación, no una estimación.
 // demandaProgramaMes: solo cuenta los meses desde el actual en adelante. Una celda con PMx en un mes ya pasado significa que ese PM no se marcó como ejecutado: NO se cuenta (podría estar hecho
-// y sin marcar) pero se informa en `atrasados` para que se revise. El día exacto no está en el programa: se usa el 15 del mes (o mañana si ese día ya pasó).
+// y sin marcar) pero se informa en `atrasados` para que se revise; `registrado` dice si ese equipo tiene algún PM registrado (registros_pm) desde ese mes, lo que sí confirma que se atendió. El día exacto no está en el programa: se usa el 15 del mes (o mañana si ese día ya pasó).
 var PROGRAMA_MESES=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
-function demandaProgramaMes(programa,consumosFn,stk,lub,mapaRep,hoy){
+function demandaProgramaMes(programa,consumosFn,stk,lub,mapaRep,hoy,registros){
   var base=hoy instanceof Date?hoy:new Date(hoy||Date.now()),anio=base.getUTCFullYear(),mesAct=base.getUTCMonth();
   var iso=function(d){return d.toISOString().slice(0,10);},hoyISO=iso(base);
   var meses=[];
@@ -8202,7 +8202,12 @@ function demandaProgramaMes(programa,consumosFn,stk,lub,mapaRep,hoy){
     for(var m2=0;m2<12;m2++){
       var v=String(cel[PROGRAMA_MESES[m2]]||'').trim().toUpperCase();
       if(!/^PM[1-4]$/.test(v))continue;
-      if(m2<mesAct){atrasados.push({sigla:p.sigla,mes:PROGRAMA_MESES[m2],pm:v});continue;}
+      if(m2<mesAct){
+        // ¿ese equipo tiene algún PM registrado desde ese mes? (las pestañas de ingreso de mantención son la fuente de lo realizado)
+        var desde=anio+'-'+('0'+(m2+1)).slice(-2)+'-01';
+        var hecho=(registros||[]).some(function(r){return r&&r.equipo===p.sigla&&String(r.fechaEntrada||r.fechaEjec||'').slice(0,10)>=desde;});
+        atrasados.push({sigla:p.sigla,mes:PROGRAMA_MESES[m2],pm:v,registrado:hecho});continue;
+      }
       var fila=meses[m2-mesAct];
       fila.pm[v]++;
       (consumosFn(p.sigla,v)||[]).forEach(function(c){

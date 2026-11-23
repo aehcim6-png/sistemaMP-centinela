@@ -24,7 +24,11 @@ describe('demandaProgramaMes', () => {
     expect(r.meses[1].lubricantes[1]).toBe(10 + 30);       // grasa del PM2 + PM4 de diciembre
   });
   it('un PM de un mes pasado sin marcar ejecutado no se cuenta pero se informa', () => {
-    expect(r.atrasados).toEqual([{ sigla: 'CF-9510', mes: 'OCT', pm: 'PM2' }]);
+    expect(r.atrasados).toEqual([{ sigla: 'CF-9510', mes: 'OCT', pm: 'PM2', registrado: false }]);
+  });
+  it('si el equipo tiene un PM registrado desde ese mes (pestañas de ingreso), el atrasado queda como registrado', () => {
+    const r2 = L.demandaProgramaMes(programa, consumos, [], lub, mapaRep, hoy, [{ equipo: 'CF-9510', tipoPM: 'PM2', fechaEntrada: '2026-10-21' }, { equipo: 'CF-9511', tipoPM: 'PM1', fechaEntrada: '2026-09-01' }]);
+    expect(r2.atrasados[0].registrado).toBe(true);
   });
   it('un repuesto de la pauta que parece lubricante pero no está en la bodega se informa aparte; los filtros no', () => {
     const r2 = L.demandaProgramaMes([{ sigla: 'X', meses: { DIC: 'PM1' } }], () => [{ _id: 'a', rep: 'MOBIL SUPER 2000 10W40', can: 4 }, { _id: 'b', rep: 'Filtro aceite motor 36870574', can: 2 }], [], [], [], hoy);
