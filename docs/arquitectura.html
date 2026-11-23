@@ -3952,6 +3952,14 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
     <li><b>Límite:</b> el registro GETS tiene cuchillas y puntas solo hasta mediados de 2024; las compras siguen después.</li>
   </ul>
 
+  <h3 id="d-251">251. El importador del chat lee los cambios de desgaste y deduce el equipo (2026-11-23)</h3>
+  <p><b>Origen:</b> el chat de BSM tiene decenas de avisos de cambio de cuchillas, calzas y entredientes que el importador no tomaba, y muchos <b>no dicen el equipo</b>: «Equipo operativo cambio de cuchillas» es el trabajo de la solicitud «cambio de cuchilla para MN-12» hecha horas antes (regla confirmada por quien trabaja en el taller).</p>
+  <ul>
+    <li><b>Lógica:</b> <code>chatDesgasteTrabajos</code> (<code>logic.js</code>) lee todos los mensajes; cuenta solo cambio, reposición, instalación o montaje de la pieza con estado operativo (o FS en plantilla); toma el equipo del texto o de la solicitud de la misma familia de piezas hecha hasta 12 h antes; resuelve «Equipo: MN» por el horómetro; deja en «Revisar» los equipos fuera del sistema, los avisos con varios equipos y los sin solicitud previa; marca dudoso el horómetro que se aleja de las lecturas.</li>
+    <li><b>Pantalla:</b> sección «Cambios de desgaste» en el análisis del chat; lo marcado se guarda en <code>getsCambios</code> (pestaña Elementos de desgaste) con el texto literal y el origen del equipo deducido. No repite lo ya registrado (±3 días).</li>
+    <li><b>Carga del 23-nov:</b> 76 cambios de 2026 quedaron en <code>gets_cambios</code>; MN-92, CN-92 y MN-7605 (arrendado devuelto) se excluyeron.</li>
+  </ul>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

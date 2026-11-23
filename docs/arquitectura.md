@@ -7554,6 +7554,13 @@ A pedido del usuario («todo lo que se llama desgaste… balde igual»), la clas
 - **Diccionario de componentes:** sin cambios (GET / Cuchillas y Balde/Implemento siguen siendo componentes aparte); solo cambia la **clase** de la OT. Unir esos componentes con Elemento de Desgaste queda como decisión pendiente.
 - **Límite:** el registro GETS tiene cambios de cuchillas y puntas solo hasta mediados de 2024; las compras siguen después, por lo que el consumo real se ve en Buscar → Compras e instalaciones por ítem.
 
+### 251. El importador del chat lee los cambios de desgaste y deduce el equipo (2026-11-23)
+
+El chat de BSM tiene decenas de avisos de cambio de cuchillas, calzas y entredientes que el importador no tomaba (solo leía los avisos con plantilla y una lista corta de componentes) y que muchas veces **no dicen el equipo**: «Equipo operativo cambio de cuchillas» es el trabajo de la solicitud «cambio de cuchilla para MN-12» hecha horas antes. Esa regla la confirmó quien trabaja en el taller.
+- **Lógica:** `chatDesgasteTrabajos` (`logic.js`, prueba en `tests/chatWhatsApp.test.js`) lee todos los mensajes; cuenta solo «cambio / reposición / instalación / montaje» de la pieza con estado operativo (o FS en plantilla); toma el equipo del texto, o del aviso más reciente de las 12 h anteriores que nombre uno y hable de la misma familia de piezas; resuelve «Equipo: MN» por el horómetro; deja en «Revisar» (sin cargar) los equipos que no están en el sistema, los avisos con varios equipos y los que no tienen solicitud previa; marca dudoso el horómetro que se aleja de las lecturas del equipo.
+- **Pantalla:** el análisis del chat tiene la sección «Cambios de desgaste», con casilla por fila y el origen de cada equipo deducido; lo marcado se guarda en `getsCambios` (pestaña Elementos de desgaste) con el texto literal del chat y la fuente «WhatsApp (chat importado …)». No repite lo que ya está (mismo equipo y pieza, ±3 días).
+- **Carga del 23-nov:** 76 cambios del chat de 2026 quedaron en `gets_cambios` con un script equivalente; MN-92, CN-92 y MN-7605 (el mismo arrendado ya devuelto) se excluyeron.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

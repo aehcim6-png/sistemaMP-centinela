@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { chatWhatsAppMensajes, chatWhatsAppSigla, chatWhatsAppReportes, chatWhatsAppAnalizar } from '../logic.js';
+import { chatWhatsAppMensajes, chatWhatsAppSigla, chatWhatsAppReportes, chatDesgasteTrabajos, chatWhatsAppAnalizar } from '../logic.js';
 
 const SIGLAS = ['CN-9503', 'CN-9501', 'CN-9502', 'CN-9507', 'CN-10159', 'CF-9510', 'CF-8769', 'BD-10139', 'MN-6112', 'MN-5926', 'CN-5131', 'CN-5133',
   'TI-5141', 'TI-5142', 'TI-9941', 'TI-9942', 'GE-10019'];
@@ -366,5 +366,74 @@ describe('plantilla del taller: «H:», «Odo:» y camión aljibe CN-7578 (2026-
   it('«Odo:» (camionetas) también es horómetro', () => {
     const r = chatWhatsAppReportes(chatWhatsAppMensajes('15-11-26 05:11 - Carlos: Equipo: CN-5131\nOdo: 124907\nEstatus: Operativo'), SIG);
     expect(r.reportes[0].horom).toBe(124907);
+  });
+});
+
+// Cambios de desgaste del chat → registro GETS (23-nov-2026). El aviso de trabajo hecho muchas veces no dice el equipo: es el de la solicitud de esa pieza hecha horas antes.
+describe('chatDesgasteTrabajos (cuchillas, calzas, entredientes…)', () => {
+  const siglas = ['MN-6112', 'MN-5926', 'CF-9510', 'CF-9511', 'CF-8769'];
+  const alias = [{ alias: 'CF-511', sigla: 'CF-9511' }];
+  const chat = (...l) => l.join('\n');
+  const msg = (f, h, de, t) => `${f} ${h} - ${de}: ${t}`;
+  const D = (txt, gets, hist) => chatDesgasteTrabajos(chatWhatsAppMensajes(txt), siglas, alias, gets || [], hist || []);
+
+  it('toma el equipo de la solicitud anterior de la misma pieza (el aviso de trabajo no dice cuál)', () => {
+    const r = D(chat(
+      msg('01-02-26', '09:46', 'Planificador', 'Programar cambio de cuchilla para MN-12 en colación porfavor'),
+      msg('01-02-26', '12:00', 'Planificador', 'CF-510 relleno de fluidos'),
+      msg('01-02-26', '15:19', 'Jonathan', 'Equipo Operativo cambio de cuchillas y puntas de reaper')));
+    expect(r.map(x => [x.sigla, x.pieza])).toEqual([['MN-6112', 'Cuchillas'], ['MN-6112', 'Puntas']]);
+    expect(r[0].deducido).toContain('Programar cambio de cuchilla para MN-12');
+    expect(r[0].marcado).toBe(true);
+  });
+  it('la pieza decide: una solicitud de calzas del CF no sirve para un aviso de cuchillas', () => {
+    const r = D(chat(
+      msg('07-02-26', '08:54', 'Planificador', 'Y para CF-511 reposición de calzas'),
+      msg('07-02-26', '14:46', 'Jonathan', 'Equipo Operativo cambio de cuchillas')));
+    expect(r.length).toBe(1);
+    expect(r[0].sigla).toBeNull();
+    expect(r[0].estado).toBe('revisar');
+    expect(r[0].marcado).toBe(false);
+  });
+  it('sin solicitud en las 12 h anteriores no se adivina el equipo', () => {
+    const r = D(chat(
+      msg('01-02-26', '09:46', 'Planificador', 'Programar cambio de cuchilla para MN-12'),
+      msg('02-02-26', '15:19', 'Jonathan', 'Equipo Operativo cambio de cuchillas')));
+    expect(r[0].sigla).toBeNull();
+    expect(r[0].estado).toBe('revisar');
+  });
+  it('un equipo que no está en el sistema (arrendado devuelto) no se carga', () => {
+    const r = D(msg('03-04-26', '18:01', 'X', '- Equipo: MN-92\n- Estatus: operativo\n- Motivo: cambio cuchillas\n- Horometro: 4063'));
+    expect(r.length).toBe(1);
+    expect(r[0].estado).toBe('revisar');
+    expect(r[0].motivoEstado).toContain('MN-92');
+    expect(r[0].marcado).toBe(false);
+  });
+  it('no cuenta solicitudes, reapriete, backlog ni avisos sin estado operativo', () => {
+    const r = D(chat(
+      msg('01-03-26', '09:00', 'P', 'Favor reposición de cuchillas MN-12'),
+      msg('01-03-26', '09:10', 'P', 'Moto 12 cambio cuchilla'),
+      msg('02-03-26', '10:00', 'J', 'CF-510 operativo reapriete de entredientes'),
+      msg('02-03-26', '11:00', 'J', '- Equipo: CF-510\n- Estatus: backlog\n- Motivo: cambio de calzas'),
+      msg('02-03-26', '12:00', 'J', 'Trasladar CF-769 a taller para PM1 y reposición entredientes')));
+    expect(r.length).toBe(0);
+  });
+  it('lo que ya está en el registro de desgaste (mismo equipo y pieza, ±3 días) queda como duplicada', () => {
+    const t = msg('04-03-26', '09:00', 'C', 'CF-510 HR: 13.413 Equipo Operativo Cambio de EntreDientes Relleno TK Grasa');
+    const r = D(t, [{ sigla: 'CF-9510', fecha: '2026-03-05', pieza: 'Entredientes' }]);
+    expect(r[0].estado).toBe('duplicada');
+    expect(r[0].marcado).toBe(false);
+    expect(r[0].horom).toBe(13413);
+  });
+  it('«Equipo: MN» sin número se resuelve por el horómetro si calza con UN solo equipo', () => {
+    const hist = [{ sigla: 'MN-6112', fecha: '2026-08-10', horomFin: 8349 }, { sigla: 'MN-5926', fecha: '2026-08-10', horomFin: 9018 }];
+    const r = D(msg('11-08-26', '14:03', 'M', '- Equipo: MN\n- Estatus: operativo\n- Motivo: cambio elemento de desgaste\n- Horometro: 8352'), [], hist);
+    expect(r[0].sigla).toBe('MN-6112');
+    expect(r[0].deducido).toContain('8352');
+  });
+  it('un horómetro que se aleja de las lecturas del equipo se marca dudoso', () => {
+    const hist = [{ sigla: 'CF-9511', fecha: '2026-03-25', horomFin: 13790 }];
+    const r = D(msg('31-03-26', '10:00', 'J', '- Equipo: CF-511\n- Estatus: operativo\n- Motivo: engrase y montaje de entre dientes\n- Horometro: 1378,1'), [], hist);
+    expect(r[0].horomDudoso).toBe(true);
   });
 });

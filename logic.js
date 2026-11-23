@@ -5653,6 +5653,113 @@ function _chatMinEvento(r){
   }
   return r.min;
 }
+// Cambios de desgaste (cuchillas, entredientes, calzas, elementos de desgaste, puntas de ripper, cantoneras) contados en el chat, para el registro de la pestaña Elementos de desgaste (GETS). 23-nov-2026.
+// Regla del taller (la confirmó quien trabaja en esto): el aviso de trabajo hecho muchas veces NO dice el equipo («Equipo operativo cambio de cuchillas»); el equipo es el de la solicitud de cambio que se hizo unas horas antes («cambio de cuchillas MN-12»). Por eso:
+//  · el equipo sale del propio texto («Equipo: MN-12», «CF-510 …»);
+//  · si el texto no nombra equipo, del aviso más reciente (hasta CHAT_DESGASTE_VENTANA_H horas antes) que nombre uno y hable de la misma familia de piezas (cuchillas, o entredientes/calzas/elementos de desgaste); queda marcado «deducido» y con el mensaje de origen;
+//  · si el texto nombra un equipo que no está en el sistema (p. ej. un arrendado ya devuelto) o varios a la vez, no se propone cargar: queda «revisar».
+// Cuenta como trabajo hecho solo lo que dice cambio/reposición/instalación/montaje de la pieza Y trae estado operativo (o FS en plantilla). Las solicitudes («favor…», «programar…»), el backlog, los «reapriete» y los «se realizará» no cuentan.
+var CHAT_DESGASTE_VENTANA_H=12;
+function _chatDesgastePiezas(txt){
+  var n=_chatNormTxt(txt);
+  if(/(?:estatus|motivo)\s*:?\s*backlog/.test(n))return[];
+  var NO=/reapriete|reaprete|apriete|backlog|favor|traslad|programar|posibilidad|evaluar|pendiente|dejar|veamos|se realizara|desgaste tornamesa/;
+  var VERBO=/cambio|reposicion|instalacion|montaje|se cambia|se repone|cambiaron|instal/;
+  var PZ=[['Cuchillas',/cuchill|cambio hoja/],['Entredientes',/entre ?diente/],['Calzas',/calza|calsa/],['Elementos de desgaste (juego completo)',/elementos de desgaste/],['Otro',/elemento de desgaste|canillera/],['Puntas',/puntas? (?:de )?(?:reaper|riper|ripper)|reaper|riper/],['Cantoneras',/cantonera/]];
+  var out=[];
+  n.split(/[,;\n]|\s-\s|\.\s/).forEach(function(seg){
+    if(!VERBO.test(seg)||NO.test(seg))return;
+    PZ.forEach(function(p){if(p[1].test(seg)&&out.indexOf(p[0])<0)out.push(p[0]);});
+  });
+  if(out.indexOf('Elementos de desgaste (juego completo)')>=0&&out.indexOf('Otro')>=0&&!/canillera/.test(n))out.splice(out.indexOf('Otro'),1);
+  return out;
+}
+function _chatDesgasteFamilia(txt){
+  var n=_chatNormTxt(txt),f=[];
+  if(/cuchill|cambio hoja/.test(n))f.push('c');
+  if(/entre ?diente|calza|calsa|elementos? de desgaste/.test(n))f.push('e');
+  return f;
+}
+function _chatDesgasteSiglas(txt,siglas,alias){
+  var re=/\b(CAEX|CN|CE|CF|BD|MN|CA|GE|TI|MC|BS|MOTO|MOTONIVELADORA|FRONTAL|BULL|BULLDOZER|CARGADOR)[\s\-_.]*(\d{2,5})\b/gi,m,ok=[],sin=[];
+  while((m=re.exec(txt))){
+    var pre=m[1].toUpperCase(),nom=pre+'-'+m[2];
+    if(pre==='MOTO'||pre==='MOTONIVELADORA')nom='MN-'+m[2];
+    else if(pre==='FRONTAL'||pre==='CARGADOR')nom='CF-'+m[2];
+    var s=chatWhatsAppSigla(nom,siglas,alias);
+    if(s){if(ok.indexOf(s)<0)ok.push(s);}else if(sin.indexOf(m[0])<0)sin.push(m[0]);
+  }
+  return{ok:ok,sin:sin};
+}
+function _chatDesgasteHorom(txt){
+  var m=String(txt||'').match(/(?:hor[oó]metro|hr|hrs?|h)\s*[:.]?\s*(\d{1,2}[.,]\d{3}(?:[.,]\d)?|\d{3,5}(?:[.,]\d)?)/i);
+  if(!m)return null;
+  var v=m[1];
+  if(/^\d{1,2}\.\d{3}$/.test(v))v=v.replace('.','');
+  else if(/^\d{1,2}\.\d{3},\d$/.test(v))v=v.replace('.','').replace(',','.');
+  else v=v.replace(',','.');
+  var f=parseFloat(v);
+  return f>100&&f<40000?f:null;
+}
+// mensajes = salida de chatWhatsAppMensajes; gets = registro actual (getsCambios, para no repetir); hist = lecturas de horómetro del sistema (para marcar un horómetro dudoso).
+function chatDesgasteTrabajos(mensajes,siglas,alias,gets,hist){
+  var M=mensajes||[],out=[],visto={};
+  var porSig={};
+  (hist||[]).forEach(function(h){var v=h.horomFin||h.horom;if(h&&h.sigla&&h.fecha&&v>0)(porSig[h.sigla]=porSig[h.sigla]||[]).push({f:h.fecha,v:v});});
+  var OPER=/\bop[a-z]{0,3}tiv[oa]\b|\bestatus:?\s*op\b/,FSF=/estatus:?\s*(?:fs|fuera de servicio)/;
+  M.forEach(function(m,i){
+    var t=m.texto||'',pz=_chatDesgastePiezas(t);
+    if(!pz.length)return;
+    var n=_chatNormTxt(t);
+    if(!(OPER.test(n)||FSF.test(n)))return;
+    var sg=_chatDesgasteSiglas(t,siglas,alias),sigla=null,deducido=null,estado='nueva',motivoEstado='';
+    if(sg.ok.length===1&&!sg.sin.length)sigla=sg.ok[0];
+    else if(sg.ok.length>1||(sg.ok.length&&sg.sin.length)){estado='revisar';motivoEstado='El aviso nombra varios equipos: '+sg.ok.concat(sg.sin).join(', ')+'.';}
+    else if(sg.sin.length){estado='revisar';motivoEstado='El equipo «'+sg.sin[0]+'» no está en el sistema (puede ser un arrendado ya devuelto).';}
+    else{
+      var fam=_chatDesgasteFamilia(t);
+      // «Equipo: MN» sin número: si el horómetro del aviso calza (±5 %) con la lectura de UN solo equipo de ese prefijo en esos días, es ese.
+      var hz=_chatDesgasteHorom(t),pf=n.match(/equipo\s*:?\s*([a-z]{2})\s*(?:[-\s]|$)/);
+      if(hz&&pf){
+        var cand=[];
+        (siglas||[]).forEach(function(sg2){
+          if(sg2.slice(0,2).toLowerCase()!==pf[1])return;
+          var cer=(porSig[sg2]||[]).filter(function(x){return Math.abs(_chatMin(x.f,'00:00')-_chatMin(m.f,'00:00'))<=10*1440;});
+          if(cer.some(function(x){return Math.abs(x.v-hz)<=0.05*hz;}))cand.push(sg2);
+        });
+        if(cand.length===1){sigla=cand[0];deducido='horómetro '+hz+' (coincide con las lecturas de '+sigla+' de esos días)';}
+      }
+      for(var k=i-1;k>=0&&!sigla;k--){
+        if(m.min-M[k].min>CHAT_DESGASTE_VENTANA_H*60)break;
+        var ft=_chatDesgasteFamilia(M[k].texto||'');
+        if(!ft.some(function(x){return fam.indexOf(x)>=0;}))continue;
+        var sk=_chatDesgasteSiglas(M[k].texto||'',siglas,alias);
+        if(sk.ok.length===1&&!sk.sin.length){sigla=sk.ok[0];deducido='mensaje de '+M[k].f+' '+M[k].h+' ('+String(M[k].texto||'').replace(/\s+/g,' ').slice(0,90)+')';}
+      }
+      if(!sigla){estado='revisar';motivoEstado='El aviso no dice el equipo y no hay una solicitud de esa pieza en las '+CHAT_DESGASTE_VENTANA_H+' h anteriores.';}
+    }
+    var horom=_chatDesgasteHorom(t),dudoso=false;
+    if(sigla&&horom){
+      var cerca=(porSig[sigla]||[]).filter(function(x){return Math.abs(_chatMin(x.f,'00:00')-_chatMin(m.f,'00:00'))<=40*1440;}).map(function(x){return x.v;});
+      if(cerca.length&&(horom<0.5*Math.min.apply(null,cerca)||horom>1.5*Math.max.apply(null,cerca)))dudoso=true;
+    }
+    pz.forEach(function(p){
+      var fila={sigla:sigla,pieza:p,fecha:m.f,hora:m.h,horom:horom,horomDudoso:dudoso,autor:m.autor,texto:String(t).replace(/\s+/g,' ').trim().slice(0,400),deducido:deducido,estado:estado,motivoEstado:motivoEstado};
+      if(sigla){
+        var k2=sigla+'|'+p+'|'+m.f;
+        if(visto[k2])return;
+        visto[k2]=true;
+        var d=_chatMin(m.f,'00:00');
+        var ya=(gets||[]).some(function(g){return g&&g.sigla===sigla&&g.fecha&&(g.pieza===p||g.pieza==='Otro'||p==='Otro')&&Math.abs(_chatMin(String(g.fecha).slice(0,10),'00:00')-d)<=3*1440;});
+        if(ya){fila.estado='duplicada';fila.motivoEstado='Ya hay un cambio parecido (mismo equipo y pieza, ±3 días) en el registro de desgaste.';}
+        else if(deducido)fila.motivoEstado='Equipo deducido del '+deducido+'.';
+      }
+      fila.marcado=fila.estado==='nueva';
+      out.push(fila);
+    });
+  });
+  return out;
+}
 // ctx: {siglas:[...], desde:'aaaa-mm-dd', hist:[...], ot:[...], reg:[...], comp:[...historial de componentes]}. Devuelve la propuesta completa (nada se guarda).
 function chatWhatsAppAnalizar(texto,ctx){
   var c=ctx||{},siglas=c.siglas||[],hist=c.hist||[],ots=c.ot||[],regs=c.reg||[];
@@ -5783,6 +5890,7 @@ function chatWhatsAppAnalizar(texto,ctx){
     vistoCambio[k]=true;
     cambios.push({sigla:r.sigla,comp:comp,fecha:fh.f,hora:fh.h,horom:r.horom,motivo:r.motivo});
   });
+  var desgaste=chatDesgasteTrabajos(msgs,siglas,c.alias,c.gets,hist);
   var compHist=c.comp||[];
   cambios.forEach(function(x){
     x.estado='nueva';
@@ -5797,14 +5905,14 @@ function chatWhatsAppAnalizar(texto,ctx){
   });
   var cuenta=function(L,e){return L.filter(function(x){return x.estado===e;}).length;};
   return{
-    cambios:cambios,
+    cambios:cambios,desgaste:desgaste,
     mensajes:msgs.length,reportes:R.reportes.length,desde:msgs.length?msgs[0].f:'',hasta:msgs.length?msgs[msgs.length-1].f:'',archivoDesde:primero,archivoHasta:ultimo,
     horometros:horom,paradas:paradas,pm:pms,backlog:backlog,
     sinResolver:Object.keys(R.sinResolver).sort().map(function(n){return{nombre:n,veces:R.sinResolver[n]};}),
     libresSinEquipo:R.libresSinEquipo,informativos:informativos,
     resumen:{horomOk:cuenta(horom,'ok'),horomYa:cuenta(horom,'ya'),horomRevisar:horom.length-cuenta(horom,'ok')-cuenta(horom,'ya'),
       paradasNuevas:cuenta(paradas,'nueva'),paradasCierran:cuenta(paradas,'cierra'),paradasDuplicadas:cuenta(paradas,'duplicada'),paradasAbiertas:cuenta(paradas,'abierta'),paradasDudosas:cuenta(paradas,'dudosa'),
-      pmNuevos:cuenta(pms,'nueva'),pmDuplicados:cuenta(pms,'duplicada'),backlog:backlog.length,cambiosNuevos:cuenta(cambios,'nueva'),cambiosDuplicados:cuenta(cambios,'duplicada')}
+      pmNuevos:cuenta(pms,'nueva'),pmDuplicados:cuenta(pms,'duplicada'),backlog:backlog.length,cambiosNuevos:cuenta(cambios,'nueva'),cambiosDuplicados:cuenta(cambios,'duplicada'),desgasteNuevos:cuenta(desgaste,'nueva'),desgasteDuplicados:cuenta(desgaste,'duplicada'),desgasteRevisar:cuenta(desgaste,'revisar')}
   };
 }
 
@@ -14826,7 +14934,7 @@ if (typeof module !== 'undefined' && module.exports) {
     esLubricante, vencReglaDefault, vencCalcProximo, vencEstado, SINIESTRO_PLAZO_DIAS, SINIESTRO_AVISO_DIAS, SINIESTRO_TIPOS, SINIESTRO_ESTADOS, SINIESTRO_RESULTADOS, SINIESTRO_DOCUMENTOS, siniestroPlazo, siniestroDocumentos, siniestroNombreArchivo, siniestroDocsEquipo, bitacoraMantenimiento, siniestrosResumen,
     fechaEsPlausible, fechaEsAnterior, duracionHM, medianaPositiva, hhPlanEstimator,
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
-    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuProgramaEstados, neuCambiosRealizados, neuSerieReal, neuNumPosNeu, neuClaveMed, neuClaveMedLectura, neuHistPorClave, neuHistSinIndice, NEU_CODIGOS_RECHAZO, NEU_RECAUCHAJE_MAX_FORMULARIO, NEU_ESTADOS_ENVIABLES, neuRecauchajesDe, neuSiguienteNumRecauchaje, neuPuedeEnviarRecauchaje, resumenRecauchajes, NEU_CAUSALES_TRASLADO, neuValidarTraslado, neuTrasladosPendientesReposicion, resumenTraslados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadTurnoDe, reportabilidadFilasEfectivas, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadSiglaDeCaptura, reportabilidadDeCaptura, reportabilidadHojaDeCaptura, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, GER_CORTES, GER_GRUPOS_MOTIVO, horasOTAprox, gerBandasDuracion, gerMotivosDemora, gerProgramaMes, gerDesgasteVsSaldo, gerReactivoPreventivo, gerPlanificacion, gerCadena, gerDotacionVsCarga, gerFrescura, panelGerencia, TAREAS_ORIGENES, TAREAS_PLAZO_PEDIR_YA_DIAS, TAREAS_ESCALA_DIAS, FALLA_REPETIDA_VENTANA_DIAS, TAREAS_CERRADAS, tareaEstado, tareaEscalaA, tareasResumen, ASISTENTE_HERRAMIENTAS, ASISTENTE_MAX_FILAS, asistenteEjecutar, tareasDePedirYa, backlogDePMSinDuplicar, otFallaRepetida, otFallaRepetidaFaltantes, tareaClaveRepetida, tareaDeFallaRepetida, rvcUnirCompras, CUADRILLAS_TALLER, GER_CUAD_MIN_CASOS, cuadrillaDeTecnico, cuadrillaEtiqueta, gerCuadrillas, RVC_FAMILIAS, rvcCondicion, rvcVidas, rvcPrecios, repararVsComprar, OT_MOTIVOS_DEMORA, OT_MOTIVO_SIN_INFORMAR, OT_REPARACIONES, OT_DEMORA_UMBRAL_H, otMotivoGrupo, otMotivoRequerido, otCierreFaltantes, otBacklogDeProvisoria, OT_MODALIDADES, otEquipoEnGarantia, otFechaTermino, otEstadoPlazo, cumplimientoPlazosReparacion, cargoEspecialidad, DOTACION_ESPECIALIDADES, dotacionProgramada, KARDEX_ORIGENES, kardexLegadoValor, kardexAplicarLegado, kardexPlanActivacion, kardexDescuadres, kardexSalidasPM, kardexSincronizarLegado, insumoParaOC, INSUMO_CATEGORIAS, INSUMO_VENTANA_CONSUMO_DIAS, INSUMO_HISTORIA_MIN_DIAS, insumoDelta, insumosSaldos, insumosKardex, insumoValidarSalida, insumosAjusteConteo, insumosResumen, insumosParsearLista, plazoEntregaCompras, PLAZO_BANDAS_OC, PLAZO_ENTREGA_DEFECTO_DIAS, PLAZO_MIN_OC_BANDA, planCompras, COMPRAS_HORIZONTES, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, repuestoEstado, compEstado, tasaDiariaReal, topeRitmoDiario, horomEnFecha, rangoDias, equipoPresenteEnPeriodo, flotaEquiposPeriodo, flotaEquiposMes, equiposConDesmovilizados, GETS_PIEZAS, GETS_ESTADOS, GETS_MIN_CAMBIOS, getsPiezaDe, getsTextoEsCambio, getsEventosDesdeOT, getsUnir, getsProyeccion, getsCalidad, getsCambioError, LUB_MAX_CANTIDAD, LUB_ORIGENES, lubUnidadCorta, lubTipoDe, lubOrigenDeMov, lubRegistroError, lubMovDeRegistro, lubTextoParaOT, lubConsumoPeriodo, lubConsumoResumen, lubConsumoMensualEfectivo, MOM_PROCESO, MOM_LETRAS, MOM_LETRAS_NOMBRE, MOM_AUDIENCIAS, MOM_ESTADOS, MOM_RACI_BASE, momRaciBaseFilas, MOM_TAREA_ACTIVIDAD_BASE, momRaciDeActividad, tareaRaci, momRaciMatriz, momRaciValidar, momEntrenamientoEstado, momEntrenamientoError, momEntrenamientoResumen, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, reporteTurnoFilas, reporteTurnoFilaDudosa, reporteTurnoCuadre, produccionToneladasDia, reporteTurnoContrasteHorometro, reporteTurnoAlias, reporteTurnoTotalesDudosos, reporteTurnoResolverSiglas, chatWhatsAppMensajes, chatWhatsAppSigla, chatWhatsAppReportes, chatWhatsAppAnalizar, REPORTE_TURNO_TABLAS, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
+    predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuProgramaEstados, neuCambiosRealizados, neuSerieReal, neuNumPosNeu, neuClaveMed, neuClaveMedLectura, neuHistPorClave, neuHistSinIndice, NEU_CODIGOS_RECHAZO, NEU_RECAUCHAJE_MAX_FORMULARIO, NEU_ESTADOS_ENVIABLES, neuRecauchajesDe, neuSiguienteNumRecauchaje, neuPuedeEnviarRecauchaje, resumenRecauchajes, NEU_CAUSALES_TRASLADO, neuValidarTraslado, neuTrasladosPendientesReposicion, resumenTraslados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadTurnoDe, reportabilidadFilasEfectivas, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadSiglaDeCaptura, reportabilidadDeCaptura, reportabilidadHojaDeCaptura, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, GER_CORTES, GER_GRUPOS_MOTIVO, horasOTAprox, gerBandasDuracion, gerMotivosDemora, gerProgramaMes, gerDesgasteVsSaldo, gerReactivoPreventivo, gerPlanificacion, gerCadena, gerDotacionVsCarga, gerFrescura, panelGerencia, TAREAS_ORIGENES, TAREAS_PLAZO_PEDIR_YA_DIAS, TAREAS_ESCALA_DIAS, FALLA_REPETIDA_VENTANA_DIAS, TAREAS_CERRADAS, tareaEstado, tareaEscalaA, tareasResumen, ASISTENTE_HERRAMIENTAS, ASISTENTE_MAX_FILAS, asistenteEjecutar, tareasDePedirYa, backlogDePMSinDuplicar, otFallaRepetida, otFallaRepetidaFaltantes, tareaClaveRepetida, tareaDeFallaRepetida, rvcUnirCompras, CUADRILLAS_TALLER, GER_CUAD_MIN_CASOS, cuadrillaDeTecnico, cuadrillaEtiqueta, gerCuadrillas, RVC_FAMILIAS, rvcCondicion, rvcVidas, rvcPrecios, repararVsComprar, OT_MOTIVOS_DEMORA, OT_MOTIVO_SIN_INFORMAR, OT_REPARACIONES, OT_DEMORA_UMBRAL_H, otMotivoGrupo, otMotivoRequerido, otCierreFaltantes, otBacklogDeProvisoria, OT_MODALIDADES, otEquipoEnGarantia, otFechaTermino, otEstadoPlazo, cumplimientoPlazosReparacion, cargoEspecialidad, DOTACION_ESPECIALIDADES, dotacionProgramada, KARDEX_ORIGENES, kardexLegadoValor, kardexAplicarLegado, kardexPlanActivacion, kardexDescuadres, kardexSalidasPM, kardexSincronizarLegado, insumoParaOC, INSUMO_CATEGORIAS, INSUMO_VENTANA_CONSUMO_DIAS, INSUMO_HISTORIA_MIN_DIAS, insumoDelta, insumosSaldos, insumosKardex, insumoValidarSalida, insumosAjusteConteo, insumosResumen, insumosParsearLista, plazoEntregaCompras, PLAZO_BANDAS_OC, PLAZO_ENTREGA_DEFECTO_DIAS, PLAZO_MIN_OC_BANDA, planCompras, COMPRAS_HORIZONTES, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, repuestoEstado, compEstado, tasaDiariaReal, topeRitmoDiario, horomEnFecha, rangoDias, equipoPresenteEnPeriodo, flotaEquiposPeriodo, flotaEquiposMes, equiposConDesmovilizados, GETS_PIEZAS, GETS_ESTADOS, GETS_MIN_CAMBIOS, getsPiezaDe, getsTextoEsCambio, getsEventosDesdeOT, getsUnir, getsProyeccion, getsCalidad, getsCambioError, LUB_MAX_CANTIDAD, LUB_ORIGENES, lubUnidadCorta, lubTipoDe, lubOrigenDeMov, lubRegistroError, lubMovDeRegistro, lubTextoParaOT, lubConsumoPeriodo, lubConsumoResumen, lubConsumoMensualEfectivo, MOM_PROCESO, MOM_LETRAS, MOM_LETRAS_NOMBRE, MOM_AUDIENCIAS, MOM_ESTADOS, MOM_RACI_BASE, momRaciBaseFilas, MOM_TAREA_ACTIVIDAD_BASE, momRaciDeActividad, tareaRaci, momRaciMatriz, momRaciValidar, momEntrenamientoEstado, momEntrenamientoError, momEntrenamientoResumen, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, reporteTurnoFilas, reporteTurnoFilaDudosa, reporteTurnoCuadre, produccionToneladasDia, reporteTurnoContrasteHorometro, reporteTurnoAlias, reporteTurnoTotalesDudosos, reporteTurnoResolverSiglas, chatWhatsAppMensajes, chatWhatsAppSigla, chatWhatsAppReportes, chatDesgasteTrabajos, chatWhatsAppAnalizar, REPORTE_TURNO_TABLAS, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, valorLecturaHorometro, cadenaLecturasHorometro, candidatosDigitacion, diagnosticarHorometros, paradasContradichasPorHorometro, resolverDestrabePorOC, verificarIntegridad,
     indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     desviosPM, PM_TOLERANCIA_CICLO, PARADA_LARGA_H, MTBF_MIN_PARADAS, MTBF_OT_MIN_MES, MTBF_FLOTA_MIN_PARADAS, mtbfFlotaAgrupado, kpiProMan010, horasParadaOT, esParadaLarga, resumenParadas, mttrParadasLargas, informeGestionPM, informeConfiabilidadPM, informeCalidadPM, pmHitoPorNombre, minutosPautaPM, emparejarPautaTiempos, programaSemanaReconstruido, estadoReprogramacionPM, resumenReprogramaciones, REPROG_MOTIVOS, evaluarTiempoPM, cumplimientoTiempoPM, actividadPorPeriodo, ordenesRegistradasAnio, comprasPreciosSospechosos, cuadreEntrePestanas, comprasEquipoItem, comprasProximoCambio, comprasItemMatcher, COMPRAS_VOCAB, otCumpleFiltrosColumna, OT_FILTRO_VACIO, horasHombreHist, esOTPredictiva, claseOTVigente, pautaTiempoRefSigla, PM_CUADRILLA_SUPUESTA, PM_HITO_NOMINAL_H, PAUTA_TIEMPO_REF_EXTRA, informeGestionFS, informeProgramaSemanal, programaSemanaReconstruido, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,
