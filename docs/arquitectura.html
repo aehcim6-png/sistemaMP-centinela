@@ -3938,6 +3938,10 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Limpieza:</b> operador y lugar sin restos de plantilla; horómetro de la OT reemplazado por la última lectura si se desviaba más de 200 h u 8 %; síntoma cortado donde empieza un «Lugar:/Horómetro:» pegado. <b>No cargado:</b> trabajos de rutina de avisos «operativo» (presurización, engrase, relleno).</p>
   <p><b>Cuadre entre pestañas</b> (Auditoría de Datos, solo lectura): <code>cuadreEntrePestanas</code> lista compras sin cambio comprobado, fuera de servicio sin lectura de horómetro, horómetro de ficha distinto del historial y PM sin lectura cerca. <b>Pendiente:</b> el respaldo diario desplegado todavía no incluye <code>equipos_alias</code>.</p>
 
+  <h3 id="d-249">249. Entredientes y entrecalzas son elementos de desgaste (2026-11-23)</h3>
+  <p><b>Origen:</b> el usuario pidió contar los «entredientes» y las entrecalzas como <b>elemento de desgaste</b> y ver cuánto se consume. El diccionario los mandaba a «GET / Cuchillas».</p>
+  <p><b>Cambio:</b> «entrediente», «entre diente», «entrecalza» y «entre calza» pasan a <b>Elemento de Desgaste</b> en <code>_CATEGORIAS_COMPONENTE</code> (logic.js), en las tres copias de las funciones Supabase (<b>las desplegadas siguen con la regla anterior hasta un nuevo despliegue</b>), en <code>docs/diccionario-mecanico.md</code> y en la migración <code>20261123150000_entredientes_elemento_desgaste.sql</code> (aplicada; corrige también el sistema de las OT del histórico). El importador del chat los propone para el Historial como Elemento de Desgaste, y en Buscar el ítem «Elementos de desgaste» queda separado de «Cuchillas». «Elemento de Desgaste» ya estaba excluido del análisis de fallas.</p>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

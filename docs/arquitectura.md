@@ -7538,6 +7538,14 @@ En un celular de 320 a 411 px la cabecera (marca + 7 íconos de 44 px = 308 px) 
 - **Cuadre entre pestañas (Auditoría de Datos):** `cuadreEntrePestanas` (logic.js) cruza horómetros, OT, PM, historial de componentes y compras, y lista (solo lectura): compras sin cambio comprobado, fuera de servicio sin lectura de horómetro, horómetro de ficha distinto del historial y PM sin lectura cerca. Es la versión permanente de las comparaciones que se hicieron a mano con el chat.
 - **Pendiente:** el respaldo diario desplegado todavía no incluye `equipos_alias` (el código del repositorio sí).
 
+### 249. Entredientes y entrecalzas son elementos de desgaste (2026-11-23)
+
+**Origen:** el usuario pidió que lo que se llama «entredientes» (y las entrecalzas) se cuente como **elemento de desgaste** y que se vea cuánto se consume. El diccionario de componentes los mandaba a «GET / Cuchillas», mezclándolos con las cuchillas de las motoniveladoras.
+- **Diccionario** (`_CATEGORIAS_COMPONENTE`, logic.js): «entrediente», «entre diente», «entrecalza» y «entre calza» pasan a **Elemento de Desgaste** (que ya incluía calzas y cantoneras en la extensión del histórico); «GET / Cuchillas» conserva cuchilla, cuchillo, gets, ripper y canillera. La misma regla se copió a `parseCorrectivo.ts`, `whatsapp-webhook` y `alerta-pm` (la prueba de sincronía exige que sean idénticos; **las funciones desplegadas siguen con la regla anterior hasta que se desplieguen de nuevo**), a `docs/diccionario-mecanico.md` y a la migración `20261123150000_entredientes_elemento_desgaste.sql` (funciones `componente_de_texto` y `sistema_de_texto_hist`, aplicada; además corrige el sistema de las OT del histórico que estaban como GET / Cuchillas solo por decir entre dientes).
+- **Importador del chat:** los cambios de entre dientes, calzas y «elementos de desgaste» se proponen para el Historial de componentes como **Elemento de Desgaste**.
+- **Buscar → Compras e instalaciones por ítem:** el ítem «Elementos de desgaste (entredientes, calzas, dientes)» queda separado de «Cuchillas», para ver cuántos se compraron en cada equipo.
+- **Efecto en estadísticas:** «Elemento de Desgaste» ya estaba en la lista de componentes excluidos del análisis de fallas (estadística y OT), igual que GET / Cuchillas y neumáticos: no cuenta como falla.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

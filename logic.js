@@ -1675,7 +1675,8 @@ var COMPRAS_VOCAB=[
   {id:'partida',nombre:'Motor de partida',rx:/motor\s*(de\s*)?(partida|arranque)|starting\s*motor|starter|burro\s*de\s*arranque/,excl:/escobill|brush|solenoid|bendix|rele|relay|switch|llave|\bkey\b|flete|trasl/},
   {id:'radiador',nombre:'Radiador / core',rx:/radiador|radiator|(^|[^a-z])core($|[^a-z])/,excl:/valve core|valvula|valve|tapa|manguera/},
   {id:'enfriador',nombre:'Enfriador',rx:/enfriador|oil\s*cooler|aftercooler|intercooler|\bcooler\b/,excl:/filtro|filter/},
-  {id:'cuchilla',nombre:'Cuchillas / dientes',rx:/cuchill|entrediente|entre diente|diente|canton|cutting\s*edge|end\s*bit|\bblade\b/,excl:/perno|bolt|tuerca|\bnut\b/},
+  {id:'desgaste',nombre:'Elementos de desgaste (entredientes, calzas, dientes)',rx:/entre\s*diente|entre\s*calza|\bcalzas?\b|calsa|elementos?\s*de\s*desgaste|cantonera|canton|(^|[^a-z])dientes?($|[^a-z])|punta[s]?\s*(de\s*)?(ripper|reaper)|wear\s*(part|plate)/,excl:/perno|bolt|tuerca|\bnut\b|golilla/},
+  {id:'cuchilla',nombre:'Cuchillas',rx:/cuchill|cutting\s*edge|end\s*bit|\bblade\b/,excl:/perno|bolt|tuerca|\bnut\b/},
   {id:'rodillo',nombre:'Rodillos',rx:/rodillo|roller/,excl:/sello|\bseal\b/},
   {id:'cadena',nombre:'Cadenas',rx:/cadena|track\s*chain|\bchain\b/,excl:/candado|loctite|cadenas? de seg/},
   {id:'pasador',nombre:'Pasadores / bujes',rx:/pasador|\bpin\b|\bbuje\b|bushing/,excl:/pinza|\bpint/},
@@ -5628,6 +5629,7 @@ function _chatCambioComponente(motivo){
   if(f('pasador(?:es)? (?:de )?(?:balde|volteo|biela)'))return'Pasador de balde';
   if(f('(?:biela|palanca)\\b'))return'Biela/Pantógrafo';
   if(f('cuchillas?\\b'))return'GET / Cuchillas';
+  if(f('(?:entre ?dientes|entre ?calzas?|calzas?|calsas?|elementos? de desgaste)\\b'))return'Elemento de Desgaste';
   // Cinturón de seguridad (23-nov-2026): el cambio de la pieza, NO el semáforo, foco o indicador de uso del cinturón (esos son eléctricos y se instalaron por campaña en abril).
   if(f('(?:base |conector |hebilla )?(?:de )?cinturon(?: de seguridad)?\\b')&&!/(?:semaforo|indicador|foco|ampolleta|luz|sensor)[^;]{0,25}cinturon|cinturon[^;]{0,20}(?:semaforo|indicador|foco)/.test(t))return'Cinturón de Seguridad';
   if(f('correas?\\b'))return'Correas/Poleas';
@@ -13140,7 +13142,8 @@ var _CATEGORIAS_COMPONENTE=[
   ['Mangueras/Fugas',['manguera','mangueras','flexible','cañeria','cañería','caneria']],
   // 'elementos desgaste' agregada (2026-08-28): variante real sin "de"
   // entre las dos palabras.
-  ['Elemento de Desgaste',['elemento de desgaste','elementos de desgaste','elementos desgaste']],
+  // Entredientes y entrecalzas (23-nov-2026, a pedido del usuario): son elementos de desgaste del balde, no GET/Cuchillas; se consumen por decenas y se miden aparte.
+  ['Elemento de Desgaste',['elemento de desgaste','elementos de desgaste','elementos desgaste','entrediente','entre diente','entrecalza','entre calza']],
   // Ampliado (auditoría 2026-08, pedido del usuario: "revisa bien, si cambian
   // tanto foco o ampolleta indica que la falla es más compleja"): el listado
   // original solo reconocía 'foco delantero'/'foco trasero' — no atrapaba
@@ -13193,7 +13196,7 @@ var _CATEGORIAS_COMPONENTE=[
   // ("se cambia cuchillo", "CAMBIO DE CUCHILLOS") — misma pieza física, sin
   // categoría hasta ahora (4 filas reales verificadas, todas motoniveladora,
   // cero relación con otro objeto llamado "cuchillo" en el resto de la base).
-  ['GET / Cuchillas',['cuchilla','cuchillo','cuchillos','entrediente','gets','entrecalza','entrecalzas','ripper','riper','canillera','canilleras']],
+  ['GET / Cuchillas',['cuchilla','cuchillo','cuchillos','gets','ripper','riper','canillera','canilleras']],
   // Ampliado (auditoría 2026-08, mismo hueco que Foco/Ampolleta): solo
   // reconocía 'pasador del balde'/'pasador balde' (la falla del pasador), no
   // atrapaba "cambio de balde"/"desgaste del balde" (el reemplazo del balde

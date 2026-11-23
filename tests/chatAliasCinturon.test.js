@@ -39,9 +39,9 @@ describe('cambios de componente del chat', () => {
     expect(c).toContain('MN-6112 Cinturón de Seguridad');
     expect(c.filter((x) => x.startsWith('CN-10155'))).toEqual([]);
   });
-  it('reconoce el cambio de correas; los entre dientes siguen sin proponerse (se cambian a diario)', () => {
+  it('reconoce el cambio de correas y los entre dientes como Elemento de Desgaste', () => {
     expect(c).toContain('CN-9501 Correas/Poleas');
-    expect(c.filter((x) => x.startsWith('CF-9511'))).toEqual([]);
+    expect(c).toContain('CF-9511 Elemento de Desgaste');
   });
   it('con el alias el equipo queda resuelto; sin él se informa como sin asignar', () => {
     expect(a.sinResolver).toEqual([]);

@@ -171,9 +171,11 @@ describe('_componenteDeSintoma', () => {
     expect(_componenteDeSintoma('correa compresor en mal estado/se cambia')).toBe('Correas');
   });
 
-  it('clasifica "entrecalza"/"entrecalzas" como GET/Cuchillas (2026-08-28, quinta pasada)', () => {
-    expect(_componenteDeSintoma('cambio juego entrecalzas')).toBe('GET / Cuchillas');
-    expect(_componenteDeSintoma('se desprende entrecalza central/se repone')).toBe('GET / Cuchillas');
+  it('clasifica "entrecalza"/"entrecalzas" y "entre dientes" como Elemento de Desgaste (23-nov-2026, a pedido del usuario; antes GET/Cuchillas)', () => {
+    expect(_componenteDeSintoma('cambio juego entrecalzas')).toBe('Elemento de Desgaste');
+    expect(_componenteDeSintoma('se desprende entrecalza central/se repone')).toBe('Elemento de Desgaste');
+    expect(_componenteDeSintoma('cambio de entredientes a balde')).toBe('Elemento de Desgaste');
+    expect(_componenteDeSintoma('cambio de cuchillas')).toBe('GET / Cuchillas');
   });
 
   it('amplía Radio/Comunicaciones a "antena" sin "radio base" cerca (2026-08-28, quinta pasada)', () => {

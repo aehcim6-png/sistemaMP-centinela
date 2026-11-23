@@ -308,17 +308,19 @@ describe('cambios de componente propuestos para el Historial', () => {
       ['MN-5926', 'GET / Cuchillas', 9565],
       ['CF-8769', 'Flexible hidráulico del implemento', 16225],
       ['CF-9510', 'Flexible hidráulico del implemento', 15991],
+      ['CF-9510', 'Elemento de Desgaste', null],     // «reposición de calzas de balde»: elemento de desgaste (23-nov-2026)
+      ['CF-8769', 'Elemento de Desgaste', null],     // «cambio de entredientes a balde»
       ['CF-9510', 'Pasador de balde', null],
     ]);
     expect(a.cambios.every((c) => c.estado === 'nueva' && c.marcado)).toBe(true);
-    expect(a.resumen.cambiosNuevos).toBe(6);
+    expect(a.resumen.cambiosNuevos).toBe(8);
   });
   it('un cambio que ya está en el Historial (±3 días, también como Balde/Implemento) queda duplicado y sin marcar', () => {
     const a = chatWhatsAppAnalizar(chat, { siglas: SIG, comp: [{ sigla: 'CF-10162', comp: 'Balde/Implemento', fechaInst: '2026-11-08' }, { sigla: 'CN-9507', comp: 'Asiento', fechaInst: '2026-10-01' }] });
     const bal = a.cambios.find((c) => c.comp === 'Balde');
     expect(bal).toMatchObject({ estado: 'duplicada', marcado: false });
     expect(a.cambios.find((c) => c.comp === 'Asiento')).toMatchObject({ estado: 'nueva', marcado: true });
-    expect(a.resumen).toMatchObject({ cambiosNuevos: 5, cambiosDuplicados: 1 });
+    expect(a.resumen).toMatchObject({ cambiosNuevos: 7, cambiosDuplicados: 1 });
   });
   it('un «fuera de servicio» no es un cambio ni un aviso repetido el mismo día cuenta dos veces', () => {
     const dos = op('10:00', 'CF-162', 'CAMBIO DE BALDE') + '\n' + op('15:00', 'CF-162', 'cambio de balde');

@@ -157,7 +157,7 @@ describe('docs/diccionario-mecanico.md', () => {
 });
 
 describe('la migración SQL sale de logic.js', () => {
-  const sql = readFileSync(new URL('../supabase/migrations/20261108130000_sinonimos_historico_ot.sql', import.meta.url), 'utf8');
+  const sql = readFileSync(new URL('../supabase/migrations/20261123150000_entredientes_elemento_desgaste.sql', import.meta.url), 'utf8');
   it('componente_de_texto, sistema_de_texto_hist y clasificar_ot son exactamente lo que genera scripts/generar_componente_sql.js', () => {
     expect(sql).toContain(funcionSQL());
     expect(sql).toContain(funcionSistemaSQL());
