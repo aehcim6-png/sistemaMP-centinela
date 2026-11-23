@@ -161,7 +161,10 @@ describe('la migración SQL sale de logic.js', () => {
   it('componente_de_texto, sistema_de_texto_hist y clasificar_ot son exactamente lo que genera scripts/generar_componente_sql.js', () => {
     expect(sql).toContain(funcionSQL());
     expect(sql).toContain(funcionSistemaSQL());
-    expect(sql).toContain(funcionClasificarSQL());
+  });
+  it('clasificar_ot (desgaste: cuchillas, ripper, puntas, balde) está en su propia migración', () => {
+    const sql2 = readFileSync(new URL('../supabase/migrations/20261123160000_desgaste_ripper_balde.sql', import.meta.url), 'utf8');
+    expect(sql2).toContain(funcionClasificarSQL());
   });
 });
 
@@ -227,4 +230,11 @@ describe('sinónimos y errores de tipeo del histórico, tercera pasada (2026-11-
     ['Equipo fuera de servicio.', 'F/S', 'Equipo en taller.', 'BD-533 fuera de servicio por pernos sueltos']
       .forEach((t) => expect(sistemaDeTextoHist(t)).toBe(''));
   });
+});
+
+describe('desgaste: cuchillas, ripper, puntas y balde (2026-11-23)', () => {
+  ['cambio de puntas de reaper', 'Cambio de cuchillas', 'Cambio de punta ripper', 'cambio de ripper', 'se reemplaza cuchillo de motoniveladora', 'cambio de canilleras', 'cambio de planchas de desgaste', 'cambio de balde', 'soldadura del balde']
+    .forEach(t => it('«' + t + '» es desgaste', () => expect(claseOTDesdeTexto(t)).toBe('desgaste')));
+  ['falla cilindro hidraulico ripper', 'falla en cilindro de balde', 'fuga de aceite en ripper']
+    .forEach(t => it('«' + t + '» sigue siendo falla', () => expect(claseOTDesdeTexto(t)).toBe('correctiva')));
 });

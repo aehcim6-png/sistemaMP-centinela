@@ -7546,6 +7546,14 @@ En un celular de 320 a 411 px la cabecera (marca + 7 íconos de 44 px = 308 px) 
 - **Buscar → Compras e instalaciones por ítem:** el ítem «Elementos de desgaste (entredientes, calzas, dientes)» queda separado de «Cuchillas», para ver cuántos se compraron en cada equipo.
 - **Efecto en estadísticas:** «Elemento de Desgaste» ya estaba en la lista de componentes excluidos del análisis de fallas (estadística y OT), igual que GET / Cuchillas y neumáticos: no cuenta como falla.
 
+### 250. Cuchillas, ripper, puntas, canilleras y balde también son desgaste (2026-11-23)
+
+A pedido del usuario («todo lo que se llama desgaste… balde igual»), la clasificación de OT `desgaste` (`_CLASE_OT_DESGASTE` en `logic.js`, espejo de la función SQL `public.clasificar_ot`) ahora reconoce: cuchillas y cuchillos, **ripper** (también «riper», «reaper») junto a puntas, cuchillas o desgaste, «cambio / reposición / reemplazo / instalación / montaje» de puntas o del ripper, canilleras, planchas de desgaste y el **cambio, reposición, reparación, soldadura o refuerzo del balde**. «Ripper» o «balde» solos **no** bastan: una falla del cilindro del ripper o del balde sigue siendo falla.
+- **Pestaña GETS:** las OT que ahora son `desgaste` entran a `gets_cambios` vía `getsUnir`; se agregó la pieza **Ripper** a `GETS_PIEZAS` / `_GETS_PIEZA_RE` (antes caía en Puntas u Otro).
+- **Base:** migración `20261123160000_desgaste_ripper_balde.sql` (solo `clasificar_ot`, aplicada). Se actualizó `claseOT` a `desgaste` en las 56 OT del histórico que ahora cumplen el criterio (no se tocaron otras filas).
+- **Diccionario de componentes:** sin cambios (GET / Cuchillas y Balde/Implemento siguen siendo componentes aparte); solo cambia la **clase** de la OT. Unir esos componentes con Elemento de Desgaste queda como decisión pendiente.
+- **Límite:** el registro GETS tiene cambios de cuchillas y puntas solo hasta mediados de 2024; las compras siguen después, por lo que el consumo real se ve en Buscar → Compras e instalaciones por ítem.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

@@ -3942,6 +3942,16 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p><b>Origen:</b> el usuario pidió contar los «entredientes» y las entrecalzas como <b>elemento de desgaste</b> y ver cuánto se consume. El diccionario los mandaba a «GET / Cuchillas».</p>
   <p><b>Cambio:</b> «entrediente», «entre diente», «entrecalza» y «entre calza» pasan a <b>Elemento de Desgaste</b> en <code>_CATEGORIAS_COMPONENTE</code> (logic.js), en las tres copias de las funciones Supabase (<b>las desplegadas siguen con la regla anterior hasta un nuevo despliegue</b>), en <code>docs/diccionario-mecanico.md</code> y en la migración <code>20261123150000_entredientes_elemento_desgaste.sql</code> (aplicada; corrige también el sistema de las OT del histórico). El importador del chat los propone para el Historial como Elemento de Desgaste, y en Buscar el ítem «Elementos de desgaste» queda separado de «Cuchillas». «Elemento de Desgaste» ya estaba excluido del análisis de fallas.</p>
 
+  <h3 id="d-250">250. Cuchillas, ripper, puntas, canilleras y balde también son desgaste (2026-11-23)</h3>
+  <p><b>Origen:</b> el usuario pidió que todo lo que se consume por desgaste cuente como desgaste, incluido el balde.</p>
+  <p><b>Cambio:</b> la clasificación de OT <code>desgaste</code> (<code>_CLASE_OT_DESGASTE</code> en <code>logic.js</code>, espejo de <code>public.clasificar_ot</code>) reconoce cuchillas y cuchillos, <b>ripper</b> («riper», «reaper») con puntas, cuchillas o desgaste, cambio/reposición/reemplazo/instalación/montaje de puntas o del ripper, canilleras, planchas de desgaste y cambio, reposición, reparación, soldadura o refuerzo del <b>balde</b>. «Ripper» o «balde» solos no bastan: una falla del cilindro sigue siendo falla.</p>
+  <ul>
+    <li><b>Pestaña GETS:</b> esas OT entran a <code>gets_cambios</code> vía <code>getsUnir</code>; se agregó la pieza <b>Ripper</b>.</li>
+    <li><b>Base:</b> migración <code>20261123160000_desgaste_ripper_balde.sql</code> (solo <code>clasificar_ot</code>, aplicada) y 56 OT del histórico pasaron a <code>desgaste</code>.</li>
+    <li><b>Diccionario de componentes:</b> sin cambios; unir GET / Cuchillas y Balde con Elemento de Desgaste queda como decisión pendiente.</li>
+    <li><b>Límite:</b> el registro GETS tiene cuchillas y puntas solo hasta mediados de 2024; las compras siguen después.</li>
+  </ul>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
