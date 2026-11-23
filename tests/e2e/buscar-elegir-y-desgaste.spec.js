@@ -46,4 +46,18 @@ test('Buscar muestra los elementos de desgaste del equipo y deja elegir qué ver
   await expect(page.locator('#s-buscar .chart-box[data-bz="Elementos de desgaste"]')).toHaveClass(/bz-plegado/);
   await page.locator('#buscarVerBarra button', { hasText: 'Desplegar todo' }).click();
   await expect(page.locator('#s-buscar .chart-box[data-bz="Elementos de desgaste"] table').first()).toBeVisible();
+
+  // Reordenar: «Elementos de desgaste» sube un lugar con su flecha ▲, se recuerda al redibujar y «Orden original» lo devuelve
+  const nombres = () => page.evaluate(() => [...document.querySelectorAll('#s-buscar > .chart-box[data-bz]')].map(x => x.dataset.bz));
+  const antes = await nombres();
+  const i = antes.indexOf('Elementos de desgaste');
+  expect(i).toBeGreaterThan(0);
+  await page.locator('#s-buscar .chart-box[data-bz="Elementos de desgaste"] .bz-mov [data-mv="-1"]').click();
+  const despues = await nombres();
+  expect(despues.indexOf('Elementos de desgaste')).toBe(i - 1);
+  expect(despues[i]).toBe(antes[i - 1]);
+  await page.evaluate(() => renders.buscar());
+  expect((await nombres()).indexOf('Elementos de desgaste')).toBe(i - 1);
+  await page.locator('#buscarVerBarra button', { hasText: 'Orden original' }).click();
+  expect(await nombres()).toEqual(antes);
 });

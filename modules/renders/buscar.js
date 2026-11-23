@@ -212,8 +212,21 @@ function _buscarOrganizar(){
   if(cajas.length<3)return;
   if(!$('buscarVerEstilo')){var st=document.createElement('style');st.id='buscarVerEstilo';st.textContent='.bz-plegado>:not(.chart-t){display:none!important}.bz-titulo{cursor:pointer;user-select:none}.bz-flecha{display:inline-block;width:14px;color:var(--tx3);font-size:10px}.bz-chip{border:1px solid var(--bd);background:var(--bg3);color:var(--tx);border-radius:14px;padding:3px 10px;font-size:11px;cursor:pointer}.bz-chip.on{background:var(--ac);color:#fff;border-color:var(--ac)}';document.head.appendChild(st);}
   var est=_buscarVerLeer(),ocultos=est.ocultos||{},plegados=est.plegados||{};
+  // Orden elegido: los bloques con orden guardado van primero en ese orden; los demás (si aparece uno nuevo) quedan después, en su orden de siempre.
+  if(est.orden&&est.orden.length){
+    var rank={};est.orden.forEach(function(n,i){rank[n]=i;});
+    var base=cajas.map(function(b,i){return{b:b,n:_buscarTituloBloque(b),i:i};});
+    var nuevo=base.slice().sort(function(a,b){
+      var ra=rank[a.n]!=null?rank[a.n]:1e6+a.i,rb=rank[b.n]!=null?rank[b.n]:1e6+b.i;return ra-rb;});
+    var cambio=nuevo.some(function(x,i){return x.b!==cajas[i];});
+    if(cambio){
+      var ancla=document.createComment('bz');cajas[0].parentNode.insertBefore(ancla,cajas[0]);
+      var ref=ancla;nuevo.forEach(function(x){ref.parentNode.insertBefore(x.b,ref.nextSibling);ref=x.b;});
+      ancla.remove();cajas=nuevo.map(function(x){return x.b;});
+    }
+  }
   var nombres=[];
-  cajas.forEach(function(box){
+  cajas.forEach(function(box,pos){
     var n=_buscarTituloBloque(box);if(!n)return;
     box.setAttribute('data-bz',n);nombres.push(n);
     var t=box.querySelector('.chart-t');
@@ -228,6 +241,23 @@ function _buscarOrganizar(){
         _buscarVerGuardar(e2);_bzFlechas(box);
       });
     }
+    var mov=t.querySelector('.bz-mov');
+    if(!mov){
+      mov=document.createElement('span');mov.className='bz-mov';mov.style.cssText='float:right;display:inline-flex;gap:2px';
+      mov.innerHTML='<button type="button" class="btn-s" data-mv="-1" title="Subir este bloque" style="padding:0 6px">▲</button><button type="button" class="btn-s" data-mv="1" title="Bajar este bloque" style="padding:0 6px">▼</button>';
+      t.appendChild(mov);
+      mov.addEventListener('click',function(ev){
+        var b=ev.target.closest('button');if(!b)return;ev.stopPropagation();
+        var dir=+b.getAttribute('data-mv'),lista=[].slice.call(raiz.children).filter(function(x){return x.classList&&x.classList.contains('chart-box')&&x.getAttribute('data-bz');});
+        var i=lista.indexOf(box),j=i+dir;if(i<0||j<0||j>=lista.length)return;
+        if(dir<0)lista[j].parentNode.insertBefore(box,lista[j]);else lista[j].parentNode.insertBefore(lista[j],box);
+        var e2=_buscarVerLeer();
+        e2.orden=[].slice.call(raiz.children).filter(function(x){return x.classList&&x.classList.contains('chart-box')&&x.getAttribute('data-bz');}).map(function(x){return x.getAttribute('data-bz');});
+        _buscarVerGuardar(e2);_buscarOrganizar();
+      });
+    }
+    mov.querySelector('[data-mv="-1"]').disabled=pos===0;
+    mov.querySelector('[data-mv="1"]').disabled=pos===cajas.length-1;
     box.style.display=ocultos[n]?'none':'';
     box.classList.toggle('bz-plegado',!!plegados[n]);
     _bzFlechas(box);
@@ -236,9 +266,9 @@ function _buscarOrganizar(){
   var viejo=$('buscarVerBarra');if(viejo)viejo.remove();
   var barra=document.createElement('div');barra.id='buscarVerBarra';
   barra.style.cssText='margin:0 0 12px;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg2)';
-  barra.innerHTML='<div style="font-size:12px;font-weight:700;margin-bottom:6px">¿Qué quieres ver de este equipo? <span style="font-weight:400;color:var(--tx3)">Toca un nombre para mostrarlo u ocultarlo. Toca el título de un bloque para plegarlo o desplegarlo.</span></div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'+
+  barra.innerHTML='<div style="font-size:12px;font-weight:700;margin-bottom:6px">¿Qué quieres ver de este equipo? <span style="font-weight:400;color:var(--tx3)">Toca un nombre para mostrarlo u ocultarlo. Toca el título de un bloque para plegarlo o desplegarlo, y usa sus flechas ▲ ▼ para cambiarlo de lugar.</span></div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'+
     nombres.map(function(n){return '<button type="button" class="bz-chip'+(ocultos[n]?'':' on')+'" data-n="'+escapeHtml(n)+'">'+escapeHtml(n)+'</button>';}).join('')+
-    '<span style="flex:1"></span><button type="button" class="btn-s" data-acc="todo">Ver todo</button><button type="button" class="btn-s" data-acc="nada">Ocultar todo</button><button type="button" class="btn-s" data-acc="plegar">Plegar todo</button><button type="button" class="btn-s" data-acc="desplegar">Desplegar todo</button></div>';
+    '<span style="flex:1"></span><button type="button" class="btn-s" data-acc="todo">Ver todo</button><button type="button" class="btn-s" data-acc="nada">Ocultar todo</button><button type="button" class="btn-s" data-acc="plegar">Plegar todo</button><button type="button" class="btn-s" data-acc="desplegar">Desplegar todo</button><button type="button" class="btn-s" data-acc="orden" title="Vuelve al orden original de los bloques">Orden original</button></div>';
   cajas[0].parentNode.insertBefore(barra,cajas[0]);
   barra.addEventListener('click',function(ev){
     var b=ev.target.closest('button');if(!b)return;
@@ -248,7 +278,8 @@ function _buscarOrganizar(){
       if(a==='todo')e2.ocultos={};
       if(a==='nada'){e2.ocultos={};nombres.forEach(function(n){e2.ocultos[n]=1;});}
       if(a==='plegar'){e2.plegados={};nombres.forEach(function(n){e2.plegados[n]=1;});}
-      if(a==='desplegar')e2.plegados={};}
+      if(a==='desplegar')e2.plegados={};
+      if(a==='orden'){delete e2.orden;_buscarVerGuardar(e2);if(typeof renderBuscar==='function')renderBuscar();return;}}
     _buscarVerGuardar(e2);_buscarOrganizar();
   });
 }
