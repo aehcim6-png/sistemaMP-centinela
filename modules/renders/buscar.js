@@ -164,6 +164,95 @@ function _buscarTcoHTML(sigla) {
     (cap ? '' : ' Para ver el TCO completo carga la amortización del equipo en Equipos → Ficha técnica, o importa el listado Horas a Amortizar.') + '</p></div>';
 }
 
+// Elementos de desgaste del equipo (cuchillas, calzas, entredientes…), de la misma fuente que la pestaña Elementos de desgaste: planilla + chat + OT, sin repetir (getsUnir). 23-nov-2026.
+// No afirma lo que no se puede afirmar: si el último cambio registrado es viejo, la fila dice «Sin registros recientes» en vez de inventar un próximo cambio.
+function _buscarDesgasteHTML(sigla,inRange){
+  var hoyISO=new Date().toISOString().slice(0,10);
+  var todos=getsUnir(S.g('getsCambios')||[],getsEventosDesdeOT(S.g('otHist')||[],S.g('ot')||[])).filter(function(c){return c.sigla===sigla;});
+  var proy=getsProyeccion(todos,hoyISO).filter(function(p){return p.sigla===sigla;});
+  var lista=todos.filter(function(c){return inRange(String(c.fecha).slice(0,10));}).sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha));});
+  var fd=function(f){return f?f.slice(8,10)+'-'+f.slice(5,7)+'-'+f.slice(0,4):'—';};
+  var COL={'Al día':'var(--ok)','Próximo':'var(--warn)','Vencido':'var(--danger)'};
+  var ORIG={GETS:'Planilla','GETS+OT':'Planilla + OT',OT:'OT'};
+  var titulo='<div class="chart-t">Elementos de desgaste ('+todos.length+' cambio'+(todos.length===1?'':'s')+')</div>';
+  if(!todos.length)return '<div class="chart-box" style="margin-bottom:12px">'+titulo+'<div style="font-size:12px;color:var(--tx3)">Este equipo no tiene cambios de cuchillas, calzas, entredientes u otros elementos de desgaste registrados.</div></div>';
+  var orden={Vencido:0,'Próximo':1,'Al día':2};
+  proy.sort(function(a,b){return (orden[a.estado]!=null?orden[a.estado]:3)-(orden[b.estado]!=null?orden[b.estado]:3)||String(a.pieza).localeCompare(String(b.pieza));});
+  var filasP=proy.map(function(p){
+    return '<tr><td style="text-align:left">'+escapeHtml(p.pieza)+'</td><td>'+p.nCambios+'</td>'+
+      '<td class="mono">'+fd(p.ultimoCambio)+'<div style="font-size:10px;color:var(--tx3)">hace '+p.diasDesdeUltimo+' d'+(p.ultimoHorometro?' · '+fn(p.ultimoHorometro)+' h':'')+'</div></td>'+
+      '<td class="mono">'+(p.intervaloDias!=null?p.intervaloDias+' d':'—')+'</td>'+
+      '<td class="mono">'+(p.proximoCambio?fd(p.proximoCambio)+'<div style="font-size:10px;color:var(--tx3)">'+(p.diasParaProximo<0?'hace '+(-p.diasParaProximo)+' d':'en '+p.diasParaProximo+' d')+'</div>':'—')+'</td>'+
+      '<td><b style="color:'+(COL[p.estado]||'var(--tx3)')+'">'+escapeHtml(p.estado)+'</b></td></tr>';
+  }).join('');
+  var filasL=lista.slice(0,15).map(function(c){
+    return '<tr><td class="mono">'+fd(String(c.fecha).slice(0,10))+'</td><td style="text-align:left">'+escapeHtml(c.pieza||getsPiezaDe(c.descripcion))+'</td><td class="mono">'+(c.horometro&&!c.horometroDudoso?fn(c.horometro):'—')+'</td><td style="font-size:10px">'+escapeHtml(ORIG[c.origen]||'Planilla')+'</td><td style="font-size:10px;text-align:left;max-width:420px">'+escapeHtml(String(c.observaciones||c.descripcion||'').slice(0,140))+'</td></tr>';
+  }).join('');
+  return '<div class="chart-box" style="margin-bottom:12px">'+titulo+
+    '<div style="font-size:11px;color:var(--tx3);margin:0 0 6px">Cada cuánto se cambia cada pieza y cuándo toca el próximo, con los cambios de la planilla, del chat de WhatsApp y de las OT (un cambio que está en dos fuentes cuenta una vez). Si el último cambio registrado es antiguo, la fila lo dice y no inventa fecha.</div>'+
+    (proy.length?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th style="text-align:left">Pieza</th><th>Cambios</th><th>Último cambio</th><th>Cada</th><th>Próximo estimado</th><th>Estado</th></tr>'+filasP+'</table></div>':'')+
+    '<div style="font-size:11px;font-weight:700;margin:10px 0 4px">Últimos cambios'+(lista.length>15?' (15 de '+lista.length+')':'')+'</div>'+
+    (lista.length?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Fecha</th><th style="text-align:left">Pieza</th><th>Horómetro</th><th>Fuente</th><th style="text-align:left">Detalle</th></tr>'+filasL+'</table></div>':'<div style="font-size:12px;color:var(--tx3)">Sin cambios en el período elegido.</div>')+
+    '</div>';
+}
+
+// «¿Qué quieres ver?» (23-nov-2026): la ficha tiene muchos bloques y a quien no la conoce lo marea. Cada bloque se puede mostrar u ocultar con un botón de arriba y plegar o desplegar con un clic en su título.
+// Lo elegido se recuerda en este navegador; por defecto se ve todo desplegado, igual que antes. Solo cambia lo que se ve: ningún dato se toca.
+var _BUSCAR_VER_CLAVE='buscarFichaVer';
+function _buscarVerLeer(){try{return JSON.parse(localStorage.getItem(_BUSCAR_VER_CLAVE)||'{}')||{};}catch(e){return {};}}
+function _buscarVerGuardar(o){try{localStorage.setItem(_BUSCAR_VER_CLAVE,JSON.stringify(o));}catch(e){}}
+function _buscarTituloBloque(box){
+  var t=box.querySelector('.chart-t');if(!t)return '';
+  var c=t.cloneNode(true);c.querySelectorAll('svg,button,select,.bz-flecha').forEach(function(x){x.remove();});
+  return (c.textContent||'').replace(/\(.*?\)/g,'').replace(/\s+/g,' ').trim();
+}
+function _buscarOrganizar(){
+  var raiz=$('s-buscar');if(!raiz)return;
+  var cajas=[].slice.call(raiz.children).filter(function(x){return x.classList&&x.classList.contains('chart-box')&&x.querySelector('.chart-t');});
+  if(cajas.length<3)return;
+  if(!$('buscarVerEstilo')){var st=document.createElement('style');st.id='buscarVerEstilo';st.textContent='.bz-plegado>:not(.chart-t){display:none!important}.bz-titulo{cursor:pointer;user-select:none}.bz-flecha{display:inline-block;width:14px;color:var(--tx3);font-size:10px}.bz-chip{border:1px solid var(--bd);background:var(--bg3);color:var(--tx);border-radius:14px;padding:3px 10px;font-size:11px;cursor:pointer}.bz-chip.on{background:var(--ac);color:#fff;border-color:var(--ac)}';document.head.appendChild(st);}
+  var est=_buscarVerLeer(),ocultos=est.ocultos||{},plegados=est.plegados||{};
+  var nombres=[];
+  cajas.forEach(function(box){
+    var n=_buscarTituloBloque(box);if(!n)return;
+    box.setAttribute('data-bz',n);nombres.push(n);
+    var t=box.querySelector('.chart-t');
+    if(!t.querySelector('.bz-flecha')){
+      t.classList.add('bz-titulo');
+      var fl=document.createElement('span');fl.className='bz-flecha';t.insertBefore(fl,t.firstChild);
+      t.addEventListener('click',function(ev){
+        if(ev.target.closest('button,select,input,a'))return;
+        var e2=_buscarVerLeer();e2.plegados=e2.plegados||{};
+        var p=!box.classList.contains('bz-plegado');
+        box.classList.toggle('bz-plegado',p);if(p)e2.plegados[n]=1;else delete e2.plegados[n];
+        _buscarVerGuardar(e2);_bzFlechas(box);
+      });
+    }
+    box.style.display=ocultos[n]?'none':'';
+    box.classList.toggle('bz-plegado',!!plegados[n]);
+    _bzFlechas(box);
+  });
+  function _bzFlechas(box){var f=box.querySelector('.bz-flecha');if(f)f.textContent=box.classList.contains('bz-plegado')?'▶':'▼';}
+  var viejo=$('buscarVerBarra');if(viejo)viejo.remove();
+  var barra=document.createElement('div');barra.id='buscarVerBarra';
+  barra.style.cssText='margin:0 0 12px;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg2)';
+  barra.innerHTML='<div style="font-size:12px;font-weight:700;margin-bottom:6px">¿Qué quieres ver de este equipo? <span style="font-weight:400;color:var(--tx3)">Toca un nombre para mostrarlo u ocultarlo. Toca el título de un bloque para plegarlo o desplegarlo.</span></div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'+
+    nombres.map(function(n){return '<button type="button" class="bz-chip'+(ocultos[n]?'':' on')+'" data-n="'+escapeHtml(n)+'">'+escapeHtml(n)+'</button>';}).join('')+
+    '<span style="flex:1"></span><button type="button" class="btn-s" data-acc="todo">Ver todo</button><button type="button" class="btn-s" data-acc="nada">Ocultar todo</button><button type="button" class="btn-s" data-acc="plegar">Plegar todo</button><button type="button" class="btn-s" data-acc="desplegar">Desplegar todo</button></div>';
+  cajas[0].parentNode.insertBefore(barra,cajas[0]);
+  barra.addEventListener('click',function(ev){
+    var b=ev.target.closest('button');if(!b)return;
+    var e2=_buscarVerLeer();e2.ocultos=e2.ocultos||{};e2.plegados=e2.plegados||{};
+    if(b.getAttribute('data-n')){var n=b.getAttribute('data-n');if(e2.ocultos[n])delete e2.ocultos[n];else e2.ocultos[n]=1;}
+    else{var a=b.getAttribute('data-acc');
+      if(a==='todo')e2.ocultos={};
+      if(a==='nada'){e2.ocultos={};nombres.forEach(function(n){e2.ocultos[n]=1;});}
+      if(a==='plegar'){e2.plegados={};nombres.forEach(function(n){e2.plegados[n]=1;});}
+      if(a==='desplegar')e2.plegados={};}
+    _buscarVerGuardar(e2);_buscarOrganizar();
+  });
+}
+
 export function renderBuscar(){
   var eq=eqConDesm();var reg=S.g('reg')||[];var ot=S.g('ot')||[];
   // otConHist (auditoría 2026-08-18, mismo hallazgo que Ratio Preventivo/Flota sin
@@ -397,6 +486,7 @@ export function renderBuscar(){
     (compHistF.length?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Componente</th><th>Fecha Inst.</th><th>Horómetro</th><th>Fuente</th><th>Obs</th></tr>'+
     compHistF.map(function(h){return'<tr><td>'+escapeHtml(h.comp||'')+'</td><td>'+(h.fechaInst||'—')+'</td><td class="mono">'+(h.horomInstalacion!=null?h.horomInstalacion:'—')+'</td><td style="font-size:10px;color:var(--tx2)">'+escapeHtml(h.fuente||'')+'</td><td style="font-size:10px">'+escapeHtml(h.obs||'')+'</td></tr>'}).join('')+'</table></div>':'<div style="padding:10px;color:var(--tx3)">Sin eventos registrados</div>')+'</div>'+
 
+    _buscarDesgasteHTML(fEq,inRange)+
     // Gestión de Destrabe
     '<div class="chart-box"><div class="chart-t"><svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="10" height="8" rx="1"/><path d="M7 9 V6 a3 3 0 0 1 6 0" fill="none"/></svg> Gestión de Destrabe ('+destrabeActivosF.length+' activos de '+destrabeF.length+')</div>'+
     (destrabeF.length?'<div class="tbl-wrap"><table style="font-size:11px"><tr><th>Trabajo</th><th>Motivo Bloqueo</th><th>Responsable</th><th>F.Compromiso</th><th>Estado</th></tr>'+
@@ -455,6 +545,7 @@ export function renderBuscar(){
     ((fEq||fAnio||fDesde||fHasta)?'<button class="btn btn-o" onclick="$(\'fBuscarEq\').value=\'\';$(\'fBuscarAnio\').value=\'\';$(\'fBuscarDesde\').value=\'\';$(\'fBuscarHasta\').value=\'\';renders.buscar()">✕ Limpiar</button>':'')+
     '</div>'+content;
   // Las tablas de la ficha se redibujan cada vez que se elige un equipo, año o fecha (renders.buscar() directo, sin pasar por go()): sin esto quedaban sin los encabezados ordenables (⇅).
+  if(fEq)_buscarOrganizar();
   setTimeout(function(){if(typeof aplicarOrdenUniversal==='function')aplicarOrdenUniversal('s-buscar');},60);
 }
 

@@ -3960,6 +3960,13 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
     <li><b>Carga del 23-nov:</b> 76 cambios de 2026 quedaron en <code>gets_cambios</code>; MN-92, CN-92 y MN-7605 (arrendado devuelto) se excluyeron.</li>
   </ul>
 
+  <h3 id="d-252">252. Buscar: bloque de Elementos de desgaste y «¿Qué quieres ver?» (2026-11-23)</h3>
+  <p><b>Origen:</b> Buscar junta todo lo de un equipo, pero a quien no la conoce lo marea tanta tabla seguida, y le faltaba lo último que se cargó: los elementos de desgaste.</p>
+  <ul>
+    <li><b>Bloque «Elementos de desgaste»:</b> misma fuente que su pestaña (planilla + chat + OT). Por pieza: cambios, último cambio, cada cuántos días y próximo estimado; debajo, los últimos 15 cambios con su fuente. Si el último cambio es antiguo lo dice y no inventa fecha.</li>
+    <li><b>«¿Qué quieres ver de este equipo?»:</b> un botón por bloque para mostrarlo u ocultarlo, más «Ver todo», «Ocultar todo», «Plegar todo» y «Desplegar todo»; un clic en el título pliega o despliega el bloque. Se recuerda en el navegador; por defecto se ve todo, igual que antes. Ningún dato se modifica.</li>
+  </ul>
+
   <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

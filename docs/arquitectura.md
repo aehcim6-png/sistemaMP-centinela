@@ -7561,6 +7561,13 @@ El chat de BSM tiene decenas de avisos de cambio de cuchillas, calzas y entredie
 - **Pantalla:** el análisis del chat tiene la sección «Cambios de desgaste», con casilla por fila y el origen de cada equipo deducido; lo marcado se guarda en `getsCambios` (pestaña Elementos de desgaste) con el texto literal del chat y la fuente «WhatsApp (chat importado …)». No repite lo que ya está (mismo equipo y pieza, ±3 días).
 - **Carga del 23-nov:** 76 cambios del chat de 2026 quedaron en `gets_cambios` con un script equivalente; MN-92, CN-92 y MN-7605 (el mismo arrendado ya devuelto) se excluyeron.
 
+### 252. Buscar: bloque de Elementos de desgaste y «¿Qué quieres ver?» (2026-11-23)
+
+Buscar es la pestaña donde se junta todo lo de un equipo; a quien no la conoce lo marea ver tantas tablas seguidas, y le faltaba lo último que se cargó: los elementos de desgaste.
+- **Bloque «Elementos de desgaste»** (`_buscarDesgasteHTML`, `modules/renders/buscar.js`): misma fuente que la pestaña Elementos de desgaste (planilla + chat + OT, `getsUnir`; proyección `getsProyeccion`). Por pieza muestra cambios, último cambio, cada cuántos días y próximo estimado; debajo, los últimos 15 cambios con su fuente. Respeta el filtro de año y fechas en la lista; la proyección usa todo el historial. Si el último cambio es antiguo lo dice («Sin registros recientes») y no inventa fecha.
+- **«¿Qué quieres ver de este equipo?»** (`_buscarOrganizar`): barra con un botón por bloque para mostrarlo u ocultarlo, más «Ver todo», «Ocultar todo», «Plegar todo» y «Desplegar todo». Un clic en el título de un bloque lo pliega o despliega. Lo elegido se recuerda en el navegador (`localStorage`, clave `buscarFichaVer`); por defecto se ve todo desplegado, igual que antes. Solo cambia lo que se ve: ningún dato se modifica.
+- Prueba: `tests/e2e/buscar-elegir-y-desgaste.spec.js`.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
