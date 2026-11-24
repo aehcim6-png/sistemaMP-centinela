@@ -35,7 +35,8 @@ describe('scoreSaludEquipo con la señal Riesgo TBO', () => {
   it('tboPct nulo o inválido no agrega señal; si solo hay tboPct, el score es ese valor', () => {
     expect(L.scoreSaludEquipo({ componentesPct: 80, tboPct: null }).total).toBe(4);
     expect(L.scoreSaludEquipo({ componentesPct: 80, tboPct: NaN }).total).toBe(4);
-    expect(L.scoreSaludEquipo({ tboPct: 40 })).toMatchObject({ valor: 40, n: 1, total: 5 });
+    expect(L.scoreSaludEquipo({ tboPct: 40 })).toMatchObject({ valor: null, n: 1, total: 5, insuficiente: true });   // una sola señal no alcanza (24-nov-2026)
+    expect(L.scoreSaludEquipo({ tboPct: 40, componentesPct: 60 })).toMatchObject({ valor: 50, n: 2, total: 5 });
   });
   it('el motivo principal puede ser Riesgo TBO y tiene recomendación', () => {
     const r = L.scoreSaludEquipo({ componentesPct: 100, confiabilidadPct: 90, tboPct: 25 });
@@ -82,7 +83,8 @@ describe('equiposConSaludFlota con riesgo TBO', () => {
   });
   it('con el riesgo TBO del equipo, el score lo incorpora y devuelve el detalle', () => {
     const r = L.equiposConSaludFlota(eqs, [], [], [], [], { 'CN-1': { pct: 50, conDato: 2, enRiesgo: 1, cambiarYa: 1 } });
-    expect(r[0].score).toMatchObject({ valor: 50, total: 5, n: 1 });
+    expect(r[0].score).toMatchObject({ valor: null, total: 5, n: 1, insuficiente: true });   // solo la señal TBO: no alcanza para dar nota (24-nov-2026)
+    expect(r[0].score.detalle[4]).toEqual({ nombre: 'Riesgo TBO', valor: 50 });
     expect(r[0].tbo.enRiesgo).toBe(1);
   });
   it('un equipo ausente del mapa no recibe la señal', () => {

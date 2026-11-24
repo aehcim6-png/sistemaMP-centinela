@@ -756,14 +756,14 @@ function _otHistComoOt(otHist){
 // llenó la columna "claseOT" de correctivos_historico; si cambias uno, cambia el otro.
 var _CLASE_OT_FALLA_FUERTE=/(fuera de servicio|falla|fuga|rota|roto|cambio de (motor|turbo|compresor|bomba|cilindro)|c[oó]digo)/i;
 var _CLASE_OT_INSTALA_VERBO=/(instala|instalaci[oó]n|mejora|calibra|polariz|sellado de cabina|hermeticidad)/i;
-var _CLASE_OT_INSTALA_OBJETO=/(radio base|antisomnolen|somnolencia|fatiga|\badas\b|polariz|check ?point|c[aá]mara|manos libres|gps|sellado de cabina|hermeticidad)/i;
+var _CLASE_OT_INSTALA_OBJETO=/(radio base|antisomnolen|somnolencia|fatiga|\badas\b|polariz|check ?point|c[aá]mara|manos libres|gps|sellado de cabina|hermeticidad|\bfocos?\b|solares?\b|espejo)/i;
 var _CLASE_OT_INSTALA_FALLA=/(fuera de servicio|falla|fuga|corte|da[ñn]ad|defectuos|repara)/i;
 // 23-nov-2026 (a pedido del usuario): todo lo que se consume por desgaste cuenta como desgaste: cuchillas y cuchillos, ripper y sus puntas (también «reaper»), puntas, canilleras, planchas de desgaste, y el cambio, reposición o
 // reparación del balde. «ripper» y «balde» solos NO bastan (una falla hidráulica del ripper o del cilindro del balde sigue siendo falla): tiene que decir que se cambió o repuso la pieza.
 var _CLASE_OT_DESGASTE=/(rodado|cuchill|elementos? de desgaste|entre ?calza|entre ?diente|calzas|puntas? (del? )?(ripper|riper|reaper|ripeer)|(ripper|riper|reaper|ripeer)[^.;]{0,25}(puntas?|cuchill|desgaste)|(cambio|reposici[oó]n|reemplazo|instalaci[oó]n|montaje)s?[^.;]{0,15}puntas?\b|(cambio|reposici[oó]n|reemplazo|instalaci[oó]n|montaje)s?[^.;]{0,25}(ripper|riper|reaper|ripeer)\b|cantonera|canillera|planchas? de desgaste|reposici[oó]n de elemento|pernos? de elemento|(cambio|reposici[oó]n|reemplazo|instalaci[oó]n|montaje|reparaci[oó]n|soldadura|refuerzo)s?[^.;]{0,15}(de|del) balde\b)/i;
-var _CLASE_OT_OPERACIONAL=/(empantan|enterrad|desenterr|remolque|siniestr|falta (de )?combustible|sin combustible|autonom[ií]a|turno noche|sistema siga|helipuer|revisi[oó]n t[eé]cnica|acreditaci|cotizaci[oó]n)/i;
+var _CLASE_OT_OPERACIONAL=/(empantan|enterrad|desenterr|remolque|siniestr|(golpe|choque|colisi[oó]n)[^.;]{0,25}(parachoques|defensa|puerta|espejo|vidrio|parabrisas|carrocer|tolva|poste|veh[ií]culo|camioneta|equipo)|volcamiento|falta (de )?combustible|sin combustible|autonom[ií]a|turno noche|sistema siga|helipuer|revisi[oó]n t[eé]cnica|acreditaci|cotizaci[oó]n)/i;
 var _CLASE_OT_PM_PARADA=/(fuera de servicio|f\/s)[^.]{0,30}(por pm|\bpm ?0?[1-4]\b|mantenci[oó]n programada|mantencicion programada|mantenimiento preventivo)/i;
-var _CLASE_OT_RUTINA=/(adblue|ad.blue|ab.blue|ablue|mantenimiento (preventivo|programado)|sopleteo|chequeo de niveles|chequeo visual|inp?ecci[oó]n visual|inspecci[oó]n visual|prueba de herm|rellena con petr[oó]leo|calibraci[oó]n|\bpm ?0?[1-4]\b|mantenci[oó]n prreventiva|mantenci[oó]n en terreno|chequeo semanal|inspecci[oó]n (diaria|general)|control (de )?neum|chequeo (de )?neum|presuri|inflado|torque|apernadura|retorque|normaliza pos|chequeo preventivo|mantenci[oó]n preventiva|mantenci[oó]n (semanal|diaria|programada)|chequeo diario|chequeo general|engrase|relleno (de|en) (dep[oó]sito|tanque|tk)|relleno de (grasa|aceite|refrigerante|niveles)|revisi[oó]n de niveles|limpieza (de )?filtro|sopletea|lavado)/i;
+var _CLASE_OT_RUTINA=/(^\s*backlog\b|adblue|ad.blue|ab.blue|ablue|mantenimiento (preventivo|programado)|sopleteo|chequeo de niveles|chequeo visual|inp?ecci[oó]n visual|inspecci[oó]n visual|prueba de herm|rellena con petr[oó]leo|calibraci[oó]n|\bpm ?0?[1-4]\b|mantenci[oó]n prreventiva|mantenci[oó]n en terreno|chequeo semanal|inspecci[oó]n (diaria|general)|control (de )?neum|chequeo (de )?neum|presuri|inflado|torque|apernadura|retorque|normaliza pos|chequeo preventivo|mantenci[oó]n preventiva|mantenci[oó]n (semanal|diaria|programada)|chequeo diario|chequeo general|engrase|relleno (de|en) (dep[oó]sito|tanque|tk)|relleno de (grasa|aceite|refrigerante|niveles)|revisi[oó]n de niveles|limpieza (de )?filtro|sopletea|lavado)/i;
 var _CLASE_OT_PATRONES={operacional:_CLASE_OT_OPERACIONAL,pmParada:_CLASE_OT_PM_PARADA,instalaVerbo:_CLASE_OT_INSTALA_VERBO,instalaObjeto:_CLASE_OT_INSTALA_OBJETO,instalaFalla:_CLASE_OT_INSTALA_FALLA,desgaste:_CLASE_OT_DESGASTE,rutina:_CLASE_OT_RUTINA,fallaFuerte:_CLASE_OT_FALLA_FUERTE};
 function claseOTDesdeTexto(descripcion,tipoInt){
   if(tipoInt==='Programada'||tipoInt==='Predictiva')return 'preventiva';
@@ -12286,6 +12286,41 @@ function indiceSaludFlota(m){
 // falta alguna dimensión (ej. equipo sin muestras de aceite, o sin 2 fallas
 // registradas para tener MTBF) se promedia solo con las disponibles — nunca se
 // rellena con un supuesto. null si NINGUNA dimensión tiene dato.
+// Reglas del Score de Salud del equipo (24-nov-2026, a partir de equipos nuevos que salían en salud crítica por la forma de medir, no por su estado):
+//  · Aceite: se mira la última muestra de cada componente de los últimos 90 días; NORMAL vale 1, PRECAUCIÓN 0,5 y cualquier otro estado 0. Nombres mal escritos del mismo componente (HIRAULICO) se juntan.
+//  · Confiabilidad: necesita al menos 3 fallas con horómetro; con 2 fallas seguidas el tiempo medio entre fallas sale diminuto y la confiabilidad da 0 %.
+//  · Un equipo con una sola señal con dato queda «sin datos suficientes» (valor null), no «crítico».
+var SALUD_ACEITE_VENTANA_DIAS=90;
+var SALUD_MIN_FALLAS=3;
+var SALUD_MIN_SENALES=2;
+function aceiteComponenteClave(c){
+  var t=String(c==null?'':c).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s+/g,' ').trim();
+  if(t==='HIRAULICO'||t==='HIDRAULICA'||t==='HIDRAULIC')t='HIDRAULICO';
+  if(t==='MANDO FINAL IZQUIERDO'||t==='MANDO FINAL IZQ.')t='MANDO FINAL IZQ';
+  if(t==='MANDO FINAL DER'||t==='MANDO FINAL DER.')t='MANDO FINAL DERECHO';
+  return t||'?';
+}
+function aceiteCreditoEstado(estado){
+  var t=String(estado==null?'':estado).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
+  return t==='NORMAL'?1:t==='PRECAUCION'?0.5:0;
+}
+// muestras: análisis de aceite de UN equipo [{fecha, componente, estado}]. Devuelve el % (0-100) o null si no hay ninguna muestra reciente.
+function saludAceitePct(muestras,hoy){
+  var base=hoy instanceof Date?hoy:new Date(hoy||Date.now()),lim=new Date(base.getTime()-SALUD_ACEITE_VENTANA_DIAS*864e5).toISOString().slice(0,10);
+  var ult={};
+  (muestras||[]).forEach(function(m){
+    if(!m||!m.fecha)return;var f=String(m.fecha).slice(0,10);if(f<lim)return;
+    var k=aceiteComponenteClave(m.componente);if(!ult[k]||f>ult[k].f)ult[k]={f:f,e:m.estado};
+  });
+  var ks=Object.keys(ult);if(!ks.length)return null;
+  return Math.round(ks.reduce(function(a,k){return a+aceiteCreditoEstado(ult[k].e);},0)/ks.length*1000)/10;
+}
+// horomFallas: horómetro de cada falla del equipo. Menos de SALUD_MIN_FALLAS → null (no se inventa una confiabilidad con dos eventos).
+function saludConfiabilidadPct(horomFallas,hrsDia){
+  var h=(horomFallas||[]).filter(function(x){return x>0;});
+  if(h.length<SALUD_MIN_FALLAS)return null;
+  return confiabilidadReal(C.mtbfReal(h),(Number(hrsDia)>0?Number(hrsDia):12)*30);
+}
 function scoreSaludEquipo(m){
   var d=m||{};
   var dimensiones=[
@@ -12299,6 +12334,8 @@ function scoreSaludEquipo(m){
   if(typeof d.tboPct==='number'&&isFinite(d.tboPct))dimensiones.push({nombre:'Riesgo TBO',valor:d.tboPct});
   var usadas=dimensiones.filter(function(c){return c.valor!=null;});
   if(!usadas.length)return {valor:null,n:0,total:dimensiones.length,detalle:dimensiones};
+  // Una sola señal no alcanza para llamar crítico (ni sano) a un equipo: queda sin datos suficientes. El detalle se conserva para ver cuál señal hay.
+  if(usadas.length<SALUD_MIN_SENALES)return {valor:null,n:usadas.length,total:dimensiones.length,detalle:dimensiones,insuficiente:true};
   var suma=usadas.reduce(function(s,c){return s+c.valor;},0);
   var valor=Math.round((suma/usadas.length)*10)/10;
   return {valor:valor,n:usadas.length,total:dimensiones.length,detalle:dimensiones};
@@ -12313,22 +12350,13 @@ function scoreSaludEquipo(m){
 // arreglos ya cargados por quien llama (eq, compMayores, neu, aceite con _sigla ya
 // resuelto, otConHist con el historial de WhatsApp incluido) y arma los índices por
 // sigla acá adentro — el llamador no necesita saber cómo, solo pasar los datos.
-function equiposConSaludFlota(eq,compMayores,neu,aceite,otConHist,tboPorSigla){
+function equiposConSaludFlota(eq,compMayores,neu,aceite,otConHist,tboPorSigla,hoy){
   var compPorSigla={};
   (compMayores||[]).forEach(function(c){if(c&&c.sigla)(compPorSigla[c.sigla]=compPorSigla[c.sigla]||[]).push(c);});
   var neuOpPorSigla={};
   (neu||[]).forEach(function(n){if(n&&n.sigla&&n.estado==='Operativo')(neuOpPorSigla[n.sigla]=neuOpPorSigla[n.sigla]||[]).push(n);});
-  var aceUltimaPorSiglaComp={};
-  (aceite||[]).forEach(function(m){
-    if(!m||!m._sigla||!m.fecha)return;
-    var k=m._sigla+'|'+(m.componente||'?');
-    if(!aceUltimaPorSiglaComp[k]||m.fecha>aceUltimaPorSiglaComp[k].fecha)aceUltimaPorSiglaComp[k]=m;
-  });
-  var aceUltimasPorSigla={};
-  Object.keys(aceUltimaPorSiglaComp).forEach(function(k){
-    var sigla=k.slice(0,k.lastIndexOf('|'));
-    (aceUltimasPorSigla[sigla]=aceUltimasPorSigla[sigla]||[]).push(aceUltimaPorSiglaComp[k]);
-  });
+  var aceMuestrasPorSigla={};
+  (aceite||[]).forEach(function(m){if(m&&m._sigla&&m.fecha)(aceMuestrasPorSigla[m._sigla]=aceMuestrasPorSigla[m._sigla]||[]).push(m);});
   var otFallasPorSigla={};
   (otConHist||[]).forEach(function(o){if(o&&o.sigla&&esFallaMTBF(o)&&o.horom>0)(otFallasPorSigla[o.sigla]=otFallasPorSigla[o.sigla]||[]).push(o.horom);});
   var medsPorSerie=(typeof _neuMedPorSerie==='function')?_neuMedPorSerie():null;
@@ -12338,10 +12366,9 @@ function equiposConSaludFlota(eq,compMayores,neu,aceite,otConHist,tboPorSigla){
     var componentesPct=compsConDato.length?Math.round(compsConDato.filter(function(s){return s.hrsRest>1000;}).length/compsConDato.length*1000)/10:null;
     var neuOp=neuOpPorSigla[e.sigla]||[];
     var neumaticosPct=neuOp.length&&typeof neuDebeCambiar==='function'?Math.round(neuOp.filter(function(n){return!neuDebeCambiar(n,medsPorSerie,eqPorSigla);}).length/neuOp.length*1000)/10:null;
-    var aceUlt=aceUltimasPorSigla[e.sigla]||[];
-    var aceitePct=aceUlt.length?Math.round(aceUlt.filter(function(m){return m.estado==='NORMAL';}).length/aceUlt.length*1000)/10:null;
-    var mtbfE=C.mtbfReal(otFallasPorSigla[e.sigla]||[]);
-    var confiabilidadPct=confiabilidadReal(mtbfE,(e.hrsDia||12)*30);
+    var aceitePct=saludAceitePct(aceMuestrasPorSigla[e.sigla],hoy);
+    var mtbfE=C.mtbfReal(otFallasPorSigla[e.sigla]||[]);    // el MTBF que se muestra sigue siendo el de 2+ fallas; solo la confiabilidad del Score exige 3
+    var confiabilidadPct=saludConfiabilidadPct(otFallasPorSigla[e.sigla],e.hrsDia);
     var tboE=(tboPorSigla&&tboPorSigla[e.sigla])||null;
     var score=scoreSaludEquipo({componentesPct:componentesPct,neumaticosPct:neumaticosPct,aceitePct:aceitePct,confiabilidadPct:confiabilidadPct,tboPct:tboE?tboE.pct:null});
     // weibull (2026-09-11, pedido del usuario: el Score de Salud/Confiabilidad
@@ -12473,7 +12500,7 @@ function registrarSnapshotSalud(historico,valorHoy,hoyISO){
 // `desdeISO` (opcional): ignora los snapshots anteriores a esa fecha. Se usa cuando cambia la fórmula del Score de un EQUIPO (SALUD_EQUIPO_METODO_DESDE):
 // comparar el valor nuevo contra uno calculado con otra fórmula inventaría una caída o un cruce que no existen (y dispararía avisos reales por correo y
 // WhatsApp). Hasta que haya un snapshot de la fórmula nueva en la ventana, no hay tendencia.
-var SALUD_EQUIPO_METODO_DESDE='2026-10-12';
+var SALUD_EQUIPO_METODO_DESDE='2026-11-25';   // fórmula nueva (aceite 90 días con precisión a medias, confiabilidad con 3+ fallas, mínimo 2 señales): no se compara contra fotos anteriores
 function valorPrevioSalud(historico,hoyISO,desdeISO){
   var fechas=Object.keys(historico||{}).filter(function(f){return f<hoyISO&&(!desdeISO||f>=desdeISO);}).sort();
   return fechas.length?historico[fechas[fechas.length-1]]:null;
@@ -15356,7 +15383,7 @@ if (typeof module !== 'undefined' && module.exports) {
     LUB_REEMPLAZO, lubVigente, lubEsObsoleto, construirLecturaHistorial,
     predFromOrdenes, ordenesSinOutliers, aceiteOutliers, outliersMultivariadosAceite, cusumAceite, cusumAceitePorComponente, analisisDemandaRepuestos, proyeccionElementosDesgaste, modeloColasMMC, bayesEmpiricoGammaPoisson, probabilidadQuiebreLeadTime, probabilidadQuiebreABanda, criticidadEquipoABanda, auditoriaDiff, auditoriaFinalizar, auditoriaReferencia, AUDIT_EXCLUIR_TABLAS, AUDIT_CAMPOS_DERIVADOS, ordenUrgentes, matrizCriticidadRepuestos, analisisABCXYZRepuestos, puntoReordenSeguridad, puntosReordenRepuestos, loteEconomicoPedido, eoqRazonCosto, politicasReposicionRepuestos, costoHoraDetDe, costoHoraDetPropio, tcoFlotaAuto, parsearHorasAmortizar, sankeyCostoTCO, sankeyHorasReparacion, sankeyLayout, arriendoVsCompra, arriendoDefectoModelo, ARRIENDO_GENERAL_DEFECTO, bandaCriticidadEquipo, equiposDeRepuesto, vedRepuestos, matrizABCVED, vedDeBanda, urgenciaPorDias, prioridadOT, VED_NIVEL_SERVICIO, ABCVED_CATEGORIA, criticidadEquiposMulticriterio, efectoMinimoDetectable, hrMinimoDetectable, avisoMuestraChica, avisoMuestraChicaSupervivencia, neuProgramaCambios, neuProgramaEstados, neuCambiosRealizados, neuSerieReal, neuNumPosNeu, neuClaveMed, neuClaveMedLectura, neuHistPorClave, neuHistSinIndice, NEU_CODIGOS_RECHAZO, NEU_RECAUCHAJE_MAX_FORMULARIO, NEU_ESTADOS_ENVIABLES, neuRecauchajesDe, neuSiguienteNumRecauchaje, neuPuedeEnviarRecauchaje, resumenRecauchajes, NEU_CAUSALES_TRASLADO, neuValidarTraslado, neuTrasladosPendientesReposicion, resumenTraslados, pcaAnalisis, _eigenSimetrica, pcaVariablesEquipos, paresZRobusto, REPORTAB_MAPA_SIGLAS, reportabilidadFechaDeNombre, reportabilidadTurnoDe, reportabilidadFilasEfectivas, reportabilidadParsearHoja, reportabilidadArmarLote, reportabilidadFusionar, reportabilidadSiglaDeCaptura, reportabilidadDeCaptura, reportabilidadHojaDeCaptura, reportabilidadDisponibilidad, reportabilidadEpisodios, curvaSPM, periodoRango, periodoEtiqueta, periodoOpciones, cumplimientoProgramaPeriodos, cumplimientoProgramaMeses, pmTipoEfectivo, pmDuracionesEstandar, PM_DURACION_ESTANDAR_H, PM_EQUIVALENCIA, pronosticoDisponibilidadEquipos, backtestPronosticoDisponibilidad, tcoCapitalPorHora, tcoConciliarValor, tcoEquipo, tcoFlota, TCO_VIDA_CONTABLE_H, planReposicionAuto, GER_CORTES, GER_GRUPOS_MOTIVO, horasOTAprox, gerBandasDuracion, gerMotivosDemora, gerProgramaMes, gerDesgasteVsSaldo, gerReactivoPreventivo, gerPlanificacion, gerCadena, gerDotacionVsCarga, gerFrescura, panelGerencia, TAREAS_ORIGENES, TAREAS_PLAZO_PEDIR_YA_DIAS, TAREAS_ESCALA_DIAS, FALLA_REPETIDA_VENTANA_DIAS, TAREAS_CERRADAS, tareaEstado, tareaEscalaA, tareasResumen, ASISTENTE_HERRAMIENTAS, ASISTENTE_MAX_FILAS, asistenteEjecutar, tareasDePedirYa, backlogDePMSinDuplicar, otFallaRepetida, otFallaRepetidaFaltantes, tareaClaveRepetida, tareaDeFallaRepetida, rvcUnirCompras, CUADRILLAS_TALLER, GER_CUAD_MIN_CASOS, cuadrillaDeTecnico, cuadrillaEtiqueta, gerCuadrillas, RVC_FAMILIAS, rvcCondicion, rvcVidas, rvcPrecios, repararVsComprar, OT_MOTIVOS_DEMORA, OT_MOTIVO_SIN_INFORMAR, OT_REPARACIONES, OT_DEMORA_UMBRAL_H, otMotivoGrupo, otMotivoRequerido, otCierreFaltantes, otBacklogDeProvisoria, OT_MODALIDADES, otEquipoEnGarantia, otFechaTermino, otEstadoPlazo, cumplimientoPlazosReparacion, cargoEspecialidad, DOTACION_ESPECIALIDADES, dotacionProgramada, KARDEX_ORIGENES, kardexLegadoValor, kardexAplicarLegado, kardexPlanActivacion, kardexDescuadres, kardexSalidasPM, kardexSincronizarLegado, insumoParaOC, INSUMO_CATEGORIAS, INSUMO_VENTANA_CONSUMO_DIAS, INSUMO_HISTORIA_MIN_DIAS, insumoDelta, insumosSaldos, insumosKardex, insumoValidarSalida, insumosAjusteConteo, insumosResumen, insumosParsearLista, plazoEntregaCompras, PLAZO_BANDAS_OC, PLAZO_ENTREGA_DEFECTO_DIAS, PLAZO_MIN_OC_BANDA, planCompras, COMPRAS_HORIZONTES, demandaMensualPlanPorNParte, pmProgramadosEquipo, pautaResolverStock, demandaPlanificadaPM, planReposicionPM, tboVidasObservadas, tboCalibrarGrupo, tboCalibracionFlota, tboCalibracionAuto, _calibFilas, _ksUniformeP, tboAjustesCosto, tboDecisionFicha, tboFichasEquipo, tboPctSano, tboFichasFlota, tboSaludFlotaAuto, valorPrevioSalud, SALUD_EQUIPO_METODO_DESDE, TBO_COSTO_HORA_DET_USD, pronosticarSerie, pronRecortarAtipicos, serieMensualDe, mesesFinalesIncompletos, mesesSiguientes, PRON_MODELOS, rotacionInventarioMRO, obsolescenciaStockMRO, calcularNPR, prioridadNPR, analisisMTTRLogNormal, stockEstado, repuestoEstado, compEstado, tasaDiariaReal, topeRitmoDiario, horomEnFecha, rangoDias, equipoPresenteEnPeriodo, flotaEquiposPeriodo, flotaEquiposMes, equiposConDesmovilizados, GETS_PIEZAS, GETS_ESTADOS, GETS_MIN_CAMBIOS, demandaProgramaMes, programaAnualVivo, programaVivoCeldas, backtestPronosticoPM, lubricanteCantidadesDeTexto, lubricanteNoPlanificado, lubClaseConsumo, consumoLubricantesResumen, desgastePedirAntes, desgasteUnidadesPorCambio, DESGASTE_UNIDADES_POR_CAMBIO, getsPiezaDe, getsTextoEsCambio, getsEventosDesdeOT, getsUnir, getsProyeccion, getsCalidad, getsCambioError, LUB_MAX_CANTIDAD, LUB_ORIGENES, lubUnidadCorta, lubTipoDe, lubOrigenDeMov, lubRegistroError, lubMovDeRegistro, lubTextoParaOT, lubConsumoPeriodo, lubConsumoResumen, lubConsumoMensualEfectivo, MOM_PROCESO, MOM_LETRAS, MOM_LETRAS_NOMBRE, MOM_AUDIENCIAS, MOM_ESTADOS, MOM_RACI_BASE, momRaciBaseFilas, MOM_TAREA_ACTIVIDAD_BASE, momRaciDeActividad, tareaRaci, momRaciMatriz, momRaciValidar, momEntrenamientoEstado, momEntrenamientoError, momEntrenamientoResumen, dispDownMap, dispEquipoMes, dispIntrinsecaEquipoMes, coberturaRegistro, dispCoberturaMes, coberturaFlotaMes, COBERTURA_MIN_PCT, DISP_VENTANA_COBERTURA, _normalizarModelo, rendimientoTeoricoCargadorFrontal, produccionPerdidaPorDetencion, rendimientoRealEquipoMes, tonPerdidaIndisponibilidadMes, reporteTurnoFilas, reporteTurnoFilaDudosa, reporteTurnoCuadre, produccionToneladasDia, reporteTurnoContrasteHorometro, reporteTurnoAlias, reporteTurnoTotalesDudosos, reporteTurnoResolverSiglas, chatWhatsAppMensajes, chatWhatsAppSigla, chatWhatsAppReportes, chatDesgasteTrabajos, chatWhatsAppAnalizar, REPORTE_TURNO_TABLAS, costoDowntimeMes, rendimientoPorCicloEquipoMes, brechaRendimientoCiclo, coeficienteVariacion, interpretacionCV, pagSlice, hayConflictoIds, costoRelativoMantenimiento, costoRelativoMantenimientoFlota, _concentracionMaximaOC, costoSugeridoPorCruce, senalUnificadaReemplazo,
     validarSaltoHorometro, valorLecturaHorometro, cadenaLecturasHorometro, candidatosDigitacion, diagnosticarHorometros, paradasContradichasPorHorometro, resolverDestrabePorOC, verificarIntegridad,
-    indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
+    indiceSaludFlota, scoreSaludEquipo, equiposConSaludFlota, saludAceitePct, saludConfiabilidadPct, aceiteComponenteClave, aceiteCreditoEstado, SALUD_ACEITE_VENTANA_DIAS, SALUD_MIN_FALLAS, SALUD_MIN_SENALES, motivoPrincipalSalud, peoresDimensionesSalud, recomendacionDimensionSalud, registrarSnapshotSalud, tendenciaSaludSemanal, matrizTransicionSalud, proyeccionSaludNSemanas,
     desviosPM, PM_TOLERANCIA_CICLO, PARADA_LARGA_H, MTBF_MIN_PARADAS, MTBF_OT_MIN_MES, MTBF_FLOTA_MIN_PARADAS, mtbfFlotaAgrupado, kpiProMan010, horasParadaOT, esParadaLarga, resumenParadas, mttrParadasLargas, informeGestionPM, informeConfiabilidadPM, informeCalidadPM, pmHitoPorNombre, minutosPautaPM, emparejarPautaTiempos, programaSemanaReconstruido, estadoReprogramacionPM, resumenReprogramaciones, REPROG_MOTIVOS, evaluarTiempoPM, cumplimientoTiempoPM, actividadPorPeriodo, ordenesRegistradasAnio, comprasPreciosSospechosos, cuadreEntrePestanas, comprasEquipoItem, comprasProximoCambio, comprasItemMatcher, COMPRAS_VOCAB, otCumpleFiltrosColumna, OT_FILTRO_VACIO, horasHombreHist, esOTPredictiva, claseOTVigente, pautaTiempoRefSigla, PM_CUADRILLA_SUPUESTA, PM_HITO_NOMINAL_H, PAUTA_TIEMPO_REF_EXTRA, informeGestionFS, informeProgramaSemanal, programaSemanaReconstruido, informeBacklogPM, backlogDesdePM, PROG_META_CERTEZA, PROG_META_CUMPLIMIENTO, equiposFueraDeServicioAhora, validarMotivoPmPendiente, sugerenciaAgruparPM, intervalosFallaFlotaDias, duracionesReparacionFlotaHoras, simulacionMonteCarloDisponibilidad, simulacionWhatIf, compararEscenariosMantenimiento, mtbfFlotaReal, confiabilidadReal, intervaloConfianzaMTBF, errorEstandarMTTR, wilsonIC95, mannKendallTendencia, r2RegresionLineal, cartaControlIMR, cartaControlEWMA, mannWhitneyU, anovaUnFactor, kruskalWallis, levenePruebaVarianzas, ajusteWeibull, ajusteWeibullVidas, analisisVidaUtilPorGrupo, analisisVidaUtilCorrectivosPorComponente, ajusteWeibullCensurado, ajusteWeibullEquipoCensurado, analisisVidaUtilPorGrupoCensurado, ajusteWeibullCorrectivosPorComponenteCensurado, kijimaEquipo, simulacionTrayectoriasGRP, simulacionTrayectoriasGRPDesdeKijima, kaplanMeier, logRankTest, coxPHBinario, kaplanMeierCorrectivosPorComponente, competingRisks, competingRisksPorEquipo, mcf, mcfCorrectivosPorComponente, crowAMSAA, crowAMSAAPorComponente, interpretacionCrowAMSAA, indiceEfectividadMantenimiento, interpretacionEfectividadMantenimiento, rulWeibull, rulHibridoComponente, rulHibridoPorComponente, oportunidadMantenimiento, oportunidadesMantenimientoFlota, confiabilidadWeibull, confiabilidadSistemaEquipo, interpretacionFormaWeibull, interpretacionAjusteWeibull, correlacionAceiteFallas, regEsATiempo, esFallaMTBF, tasaFallaPorUbicacion, testChiCuadradoUniforme, patronesOcultosFalla, causasLatentesRepetidas, _CATEGORIAS_MTTR, analisisMTTRPorCategoria, _CLASIFICACIONES_COSTO, analisisCapexOpex, trazabilidadAvisoOrden, resumenTrazabilidadAvisoOrden, _parsearTiempoRespuestaDias, tiempoRespuestaPorProveedor, pedidosPotencialmenteTrabados, tiempoAprobacionOC, _normalizarComponente, intervalosPF, testIndependenciaChi2, independenciaComponenteUbicacion, edadVirtualEquipo, correlacionSpearman, holmAjustarP, correlacionesPares, correlacionesIndicadoresEquipos, correlacionMetalesAceite, correlacionSenalesReemplazo, backtestAnticipacionFallas, _btMetricasProb, evaluarDiccionarioComponentes, _btScoresModelos, curvaPFCompleta, simulacionCargaTaller, backtestCargaTaller, cargaRealTallerPorMes,
     probabilidadFallaDesdeEventos, paretoAcumulado, _otHistComoOt, claseOTDesdeTexto, _CLASE_OT_PATRONES, esFallaOTHist, soloFallasOTHist, FODA_TIPOS, FODA_NOMBRES, FODA_CRUCES, FODA_ESTADOS, fodaCruceDe, fodaCodigos, fodaResumen, fodaEstrategiaError, fodaTasaFallaPorEquipo, fodaSugerencias, sistemaDeTextoHist, _CATEGORIAS_EVENTO, _CATEGORIAS_COMPONENTE_HIST, _CATEGORIAS_OPERACIONAL, _informesFallaComoOt, contarFallasMes, contarParadasLargasMes, ratioPreventivo, porcentajeCorrectivoReactivo,
     _gastoProyectadoCategoria, agruparPeriodo, equiposSinCriticidad, fechaAyer, fechaMismoDiaAnioPasado, presupuestoProrrateado,

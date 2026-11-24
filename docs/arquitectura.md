@@ -7622,6 +7622,15 @@ El usuario preguntó si el sistema es realmente predictivo. En vez de afirmarlo 
 - **Cambio:** `tasaDiariaReal` usa la **mediana de los tramos de los últimos 60 días** si hay al menos 3 tramos válidos; con menos conserva el método anterior (caso BD-9509 de historial disperso). Verificado con datos reales con esta misma regla: error medio **9,7 días**, típico 4, **75 % a ±7 días** y 88 % a ±14; 13 de 217 casos con más de 30 días de error.
 - **Medición permanente:** `backtestPronosticoPM` (`logic.js`, `tests/backtestPronosticoPM.test.js`) repite la prueba en el sistema; Programa Anual muestra «Qué tan bien acierta este pronóstico» y los equipos poco confiables (error medio > 14 días). Un PM atrasado por falta de personal o repuestos cuenta como error del pronóstico.
 - **Alcance:** cambia las fechas de todos los PM proyectados (Dashboard, alertas, Programa Anual, Gantt, Qué comprar). La prueba usa mi réplica en SQL del cálculo, la regla final se verificó con SQL y la función de la app quedó probada con pruebas unitarias; no se comparó la función de la app contra los 217 pares reales uno a uno.
+### 259. Score de Salud: equipos nuevos en salud crítica por la forma de medir (2026-11-24)
+
+El usuario notó equipos relativamente nuevos con salud baja. Se revisaron los datos detrás de tres (CN-7578 con 0, BD-10139 con 30, CN-10160 con 46) y el problema era la medición, no el equipo:
+- **Aceite:** «precaución» valía lo mismo que «alerta» (cero), una muestra de hace meses seguía mandando, y un componente mal escrito (HIRAULICO) contaba como uno más. En equipos nuevos el primer análisis suele salir alterado por el asentamiento.
+- **Confiabilidad con pocas fallas:** CN-7578 tenía dos OT («golpe en parachoques y cañería», «cañería dañada») a 26 h una de otra: tiempo medio entre fallas diminuto y confiabilidad 0 %, que era su única señal.
+- **Clasificación de OT:** «instalación focos solares», «Backlog: revisar soporte de cámara…» y un golpe de parachoques contaban como fallas.
+- **Una sola señal:** un equipo con un solo dato recibía nota (0 o 100) igual que uno con cinco.
+**Cambios** (`logic.js`; `tests/saludEquipo.test.js`, `tests/saludEquipoTbo.test.js`, `tests/claseOTHist.test.js`): aceite de los últimos 90 días con NORMAL=1, PRECAUCIÓN=0,5, otro=0 y nombres unificados (`saludAceitePct`); confiabilidad solo con 3 o más fallas (`saludConfiabilidadPct`); con menos de 2 señales el equipo queda «sin datos suficientes» (`valor` null, `insuficiente`); el clasificador de OT (JS y SQL, migración `20261124120000`, aplicada con reclasificación del histórico) deja de contar focos, backlog y golpes como falla. Buscar usa las mismas reglas que Dashboard y Torre.
+**Efecto:** cambia el puntaje de toda la flota (algunos suben, otros pasan a «sin datos suficientes»). `SALUD_EQUIPO_METODO_DESDE` pasó al 25-nov-2026 para no avisar «cruzó a salud baja» ni mostrar tendencias contra fotos calculadas con la fórmula anterior; la tendencia de 7 días vuelve a aparecer tras una semana de fotos nuevas.
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

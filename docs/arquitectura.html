@@ -4027,6 +4027,16 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
     <li><b>Alcance y límites</b>: cambia las fechas de todos los PM proyectados. Un PM atrasado por falta de personal o repuestos cuenta como error. La medición con datos reales se hizo con una réplica en SQL del cálculo; la función de la app quedó probada con pruebas unitarias.</li>
   </ul>
 
+  <h3 id="d-259">259. Score de Salud: equipos nuevos en salud crítica por la forma de medir (2026-11-24)</h3>
+  <p>Equipos relativamente nuevos aparecían con salud baja (CN-7578 con 0, BD-10139 con 30, CN-10160 con 46). El problema era la medición:</p>
+  <ul>
+    <li><b>Aceite</b>: «precaución» valía lo mismo que «alerta», una muestra de hace meses seguía mandando y un componente mal escrito (HIRAULICO) contaba como uno más.</li>
+    <li><b>Confiabilidad con pocas fallas</b>: dos OT a 26 h de distancia daban una confiabilidad de 0 %, que era la única señal de CN-7578.</li>
+    <li><b>Clasificación de OT</b>: instalar focos solares, un ítem de «Backlog:» y un golpe de parachoques contaban como fallas.</li>
+    <li><b>Una sola señal</b> recibía nota igual que cinco.</li>
+  </ul>
+  <p><b>Cambios</b>: aceite de los últimos 90 días con NORMAL=1, PRECAUCIÓN=0,5 y otro=0; confiabilidad solo con 3 o más fallas; con menos de 2 señales el equipo queda «sin datos suficientes»; el clasificador de OT (JS y SQL) deja de contar focos, backlog y golpes como falla. Buscar usa las mismas reglas que Dashboard y Torre. <b>Efecto</b>: cambia el puntaje de toda la flota; la tendencia de 7 días y los avisos de cruce a salud baja parten de cero desde el 25-nov-2026.</p>
+
 <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

@@ -442,13 +442,9 @@ export function renderBuscar(){
     var componentesPct=compsConDato.length?Math.round(compsConDato.filter(function(s){return s.hrsRest>1000;}).length/compsConDato.length*1000)/10:null;
     var neuOperativos=neuF.filter(function(n){return n.estado==='Operativo';});
     var neumaticosPct=neuOperativos.length?Math.round(neuOperativos.filter(function(n){return typeof neuDebeCambiar!=='function'||!neuDebeCambiar(n);}).length/neuOperativos.length*1000)/10:null;
-    var aceHistEq=aceTodos.filter(function(m){return m._sigla===fEq;});
-    var aceUltimaPorComp={};
-    aceHistEq.forEach(function(m){var k=m.componente||'?';if(!aceUltimaPorComp[k]||(m.fecha||'')>(aceUltimaPorComp[k].fecha||''))aceUltimaPorComp[k]=m;});
-    var aceUltimas=Object.keys(aceUltimaPorComp).map(function(k){return aceUltimaPorComp[k];});
-    var aceitePct=aceUltimas.length?Math.round(aceUltimas.filter(function(m){return m.estado==='NORMAL';}).length/aceUltimas.length*1000)/10:null;
-    var horasPeriodoEq=eqObj?(eqObj.hrsDia||12)*30:null;
-    var confiabilidadPct=confiabilidadReal(mtbfEq,horasPeriodoEq);
+    // Mismas reglas que Dashboard y Torre (saludAceitePct / saludConfiabilidadPct, logic.js): aceite de los últimos 90 días con precaución a medias, y confiabilidad solo con 3 o más paradas.
+    var aceitePct=saludAceitePct(aceTodos.filter(function(m){return m._sigla===fEq;}));
+    var confiabilidadPct=saludConfiabilidadPct(paradasEqArr.map(function(o){return o.horom;}),eqObj?eqObj.hrsDia:null);
     var tboEq=(typeof tboSaludFlotaAuto==='function'?tboSaludFlotaAuto():{})[fEq]||null;
     var scoreEq=scoreSaludEquipo({componentesPct:componentesPct,neumaticosPct:neumaticosPct,aceitePct:aceitePct,confiabilidadPct:confiabilidadPct,tboPct:tboEq?tboEq.pct:null});
     var scoreCol=scoreEq.valor==null?'var(--bd)':scoreEq.valor>=80?'var(--ok)':scoreEq.valor>=55?'var(--ac)':'var(--danger)';

@@ -162,8 +162,8 @@ describe('la migración SQL sale de logic.js', () => {
     expect(sql).toContain(funcionSQL());
     expect(sql).toContain(funcionSistemaSQL());
   });
-  it('clasificar_ot (desgaste: cuchillas, ripper, puntas, balde) está en su propia migración', () => {
-    const sql2 = readFileSync(new URL('../supabase/migrations/20261123160000_desgaste_ripper_balde.sql', import.meta.url), 'utf8');
+  it('clasificar_ot (instalación de focos, backlog y golpes) está en su propia migración, la más reciente que la cambia', () => {
+    const sql2 = readFileSync(new URL('../supabase/migrations/20261124120000_clasificar_ot_focos_backlog_golpe.sql', import.meta.url), 'utf8');
     expect(sql2).toContain(funcionClasificarSQL());
   });
 });
