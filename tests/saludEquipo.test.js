@@ -163,3 +163,55 @@ describe('matriz de salud propuesta (24-nov-2026)', () => {
     expect(saludHistorialPct(null, null)).toBeNull();
   });
 });
+
+describe('saludMatrizEquipos: la matriz calculada para la flota (24-nov-2026)', () => {
+  const L = require('../logic.js');
+  const hoy = new Date('2026-11-24T12:00:00Z');
+  const eq = [
+    { sigla: 'A-1', horomActual: 10000, hrsDia: 12, diasParaPM: 20, fechaProxPM: '2026-12-14', frecPM: 250 },
+    { sigla: 'B-1', horomActual: 10000, hrsDia: 12, diasParaPM: -5, fechaProxPM: '2026-11-19', frecPM: 250 },
+    { sigla: 'C-1', horomActual: 500, hrsDia: 12, diasParaPM: 999, fechaProxPM: '', frecPM: 250 },
+  ];
+  const comp = [
+    { sigla: 'A-1', comp: 'Motor', esOriginal: true, vidaUtil: 15000 },
+    { sigla: 'A-1', comp: 'Bomba hidráulica', esOriginal: true, vidaUtil: 15000 },
+    { sigla: 'B-1', comp: 'Motor', esOriginal: true, vidaUtil: 9000 },          // ya pasó su vida: componente vencido → veto
+    { sigla: 'C-1', comp: 'Motor', fechaInst: '', horomComp: 0, vidaUtil: 15000 },   // sin instalación: no es dato
+  ];
+  const ace = [
+    { _sigla: 'A-1', fecha: '2026-11-10', componente: 'MOTOR', estado: 'NORMAL' },
+    { _sigla: 'B-1', fecha: '2026-11-10', componente: 'TRANSMISION', estado: 'ALERTA' },   // alerta en tren de potencia → veto
+  ];
+  const ot = [
+    { sigla: 'A-1', tipo: 'Correctivo', sintoma: 'falla de bomba', fecha: '2026-10-01', horom: 9900, estado: 'Cerrada', duracion: '4h' },
+    { sigla: 'B-1', tipo: 'Correctivo', sintoma: 'falla de motor', fecha: '2026-11-01', horom: 9990, estado: 'Cerrada', duracion: '30h 00min' },
+  ];
+  const r = L.saludMatrizEquipos(eq, comp, [], ace, ot, null, hoy);
+  it('un equipo sano en condición y sin muestras malas obtiene nota con sus tres categorías', () => {
+    expect(r['A-1'].matriz.valor).not.toBeNull();
+    expect(r['A-1'].sub.tren).toBe(100);             // aceite normal + motor con vida
+    expect(r['A-1'].sub.hidraulico).toBe(100);
+    expect(r['A-1'].fallas90).toBe(1);
+    expect(r['A-1'].historial).toBe(75);
+    expect(r['A-1'].preventivo).toBe(85);
+    expect(r['A-1'].matriz.criticos).toBeUndefined();
+    expect(r['A-1'].criticos).toEqual([]);
+  });
+  it('alerta de aceite en el tren de potencia, componente vencido y una parada de 24 h o más activan el veto (máximo 39)', () => {
+    expect(r['B-1'].criticos).toEqual(expect.arrayContaining(['aceite en alerta: TRANSMISION', 'componente vencido: Motor']));
+    expect(r['B-1'].matriz.valor).toBeLessThanOrEqual(39);
+    expect(r['B-1'].matriz.veto.motivos.length).toBeGreaterThanOrEqual(2);
+    expect(r['B-1'].paradas12m).toBe(1);
+  });
+  it('un equipo sin dato real ni OT queda sin datos suficientes (no se inventa nota ni historial)', () => {
+    expect(r['C-1'].historial).toBeNull();
+    expect(r['C-1'].preventivo).toBeNull();
+    expect(r['C-1'].matriz.valor).toBeNull();
+    expect(r['C-1'].matriz.insuficiente).toBe(true);
+  });
+  it('clasifica los componentes por subsistema', () => {
+    expect(L.saludSubsistemaDe('Mando final izquierdo')).toBe('tren');
+    expect(L.saludSubsistemaDe('Bomba hidráulica')).toBe('hidraulico');
+    expect(L.saludSubsistemaDe('Radiador')).toBe('otros');
+  });
+});

@@ -79,7 +79,7 @@ Qué se puede sostener y qué no:
 
 ## 6. Matriz propuesta (para que la ajuste y firme quien responde por la confiabilidad)
 
-Está en el código como `SALUD_MATRIZ_PROPUESTA` y `scoreSaludMatriz` (`logic.js`), con pruebas, pero **no está conectada** al Score que ven los usuarios. Los pesos son un punto de partida, no una norma.
+Está en el código como `SALUD_MATRIZ_PROPUESTA`, `scoreSaludMatriz` y `saludMatrizEquipos` (`logic.js`), con pruebas. **No reemplaza** al Score que ven los usuarios: la Torre de Control tiene un desplegable «Comparación: Score actual vs. matriz propuesta» que calcula ambos para toda la flota con los datos reales (equipo por equipo: nota actual, nota con la matriz, confianza, subpuntajes, motivo del veto y cuántos cambian de banda). Esa comparación es la tabla de antes y después que se debe revisar antes de adoptar la matriz. Los pesos son un punto de partida, no una norma, y siguen **pendientes de firma**.
 
 **Capa A: categorías de dato** (los pesos se reparten solo entre las que tienen dato; la confianza dice qué parte del peso tenía dato)
 
