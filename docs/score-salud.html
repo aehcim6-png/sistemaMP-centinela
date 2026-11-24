@@ -85,7 +85,7 @@
   <p class="eyebrow">SistemaMP Centinela — documentación</p>
   <h1>Score de Salud — especificación y validación — SistemaMP Centinela</h1>
 
-<!--doc-ini--><div class="doc-layout"><nav aria-label="Índice del documento"><details class="doc-index" open><summary>Índice</summary><a class="h2" href="#d-1">1. Qué es hoy (tal como está en el código)</a><a class="h2" href="#d-2">2. Auditoría con los datos reales (24-nov-2026, 42 equipos)</a><a class="h2" href="#d-3">3. De dónde sale esto: qué está respaldado y qué es criterio propio</a><a class="h2" href="#d-4">4. Diseño propuesto (criterio propio; para aprobar antes de cambiar la fórmula otra vez)</a><a class="h2" href="#d-5">5. Plan de validación (lo que respalda el Score)</a><a class="h2" href="#d-6">6. Pendientes de decisión</a></details></nav><div class="doc-main"><!--/doc-ini-->
+<!--doc-ini--><div class="doc-layout"><nav aria-label="Índice del documento"><details class="doc-index" open><summary>Índice</summary><a class="h2" href="#d-1">1. Qué es hoy (tal como está en el código)</a><a class="h2" href="#d-2">2. Auditoría con los datos reales (24-nov-2026, 42 equipos)</a><a class="h2" href="#d-3">3. De dónde sale esto: qué está respaldado y qué es criterio propio</a><a class="h3" href="#d-4">3.1 Marco aportado por el usuario (24-nov-2026) — sin fuente verificada</a><a class="h2" href="#d-5">4. Diseño propuesto (criterio propio; para aprobar antes de cambiar la fórmula otra vez)</a><a class="h2" href="#d-6">5. Plan de validación (lo que respalda el Score)</a><a class="h2" href="#d-7">6. Pendientes de decisión</a></details></nav><div class="doc-main"><!--/doc-ini-->
 <p>Estado: <b>borrador para decisión</b> (24-nov-2026). Este documento dice cómo funciona hoy el Score de Salud, qué se encontró al auditarlo con toda la flota, qué parte tiene respaldo y cuál es criterio propio, y cómo se valida antes de usarlo para decidir.</p>
 
   <h2 id="d-1">1. Qué es hoy (tal como está en el código)</h2>
@@ -132,7 +132,21 @@
   </ul>
   <p><b>Para tener un respaldo real</b> hay que: (a) que alguien lea las fuentes completas (se pueden enviar los PDF aquí, o abrir el acceso a esos sitios en la configuración de red del entorno), o (b) apoyarse en estándares de confiabilidad conocidos (por ejemplo ISO 14224 para datos de fallas, ISO 55000 para gestión de activos) leídos directamente. Hasta entonces, el único respaldo de peso es la validación contra nuestros propios datos.</p>
 
-  <h2 id="d-4">4. Diseño propuesto (criterio propio; para aprobar antes de cambiar la fórmula otra vez)</h2>
+  <h3 id="d-4">3.1 Marco aportado por el usuario (24-nov-2026) — sin fuente verificada</h3>
+  <p>El usuario entregó un texto (de origen no indicado; parece salida de otro asistente) que dice que el respaldo técnico es ISO 55000 (gestión de activos) e ISO 17359 (monitoreo de condición), aplicados con RCM y FMECA, y que <b>no existe una tabla única de porcentajes</b>: cada faena calibra los pesos con sus ingenieros de confiabilidad y los manuales del fabricante. Propone dos capas y una regla de veto:</p>
+  <ul>
+    <li><b>Capa A, por categoría de dato</b> (suma 100 %): monitoreo de condición (aceite, vibraciones, termografía) 40–50 %; telemetría y alertas 20–30 %; historial de fallas y confiabilidad 15–20 %; cumplimiento preventivo y edad 10–15 %.</li>
+    <li><b>Capa B, por subsistema del equipo:</b> por ejemplo tren de potencia 45 %, hidráulico/dirección/frenos 25 %, estructura 15 %, eléctrico y neumático 15 %.</li>
+    <li><b>Regla del peor factor:</b> si un parámetro crítico está en cero (hierro crítico en el aceite del motor, falla activa de frenos) el puntaje general se fuerza a menos de 40 % sin importar el promedio.</li>
+  </ul>
+  <p>Qué se puede sostener y qué no:</p>
+  <ul>
+    <li><b>Sostenible por lógica de ingeniería</b> (aunque no verificado en una fuente): ponderar por categoría y por subsistema, tratar la criticidad por separado, mostrar la confianza del dato y usar un veto cuando una señal crítica está en rojo. El propio texto reconoce que <b>los porcentajes los define cada faena</b>, así que <b>no son un estándar</b>.</li>
+    <li><b>No verificado:</b> los porcentajes «típicos» de la tabla, que SAP o Maximo los usen así, y que ISO 55000 o ISO 17359 prescriban un puntaje de salud. Las dos normas existen, pero hasta donde se sabe no fijan pesos ni umbrales; eso hay que confirmarlo leyéndolas. FMECA se usa para priorizar modos de falla por criticidad (en general con escalas de severidad, ocurrencia y detección), no «calcula matemáticamente» la probabilidad.</li>
+    <li><b>Consecuencia para nuestro sistema:</b> los pesos de cualquier versión nueva deben ser <b>decididos y firmados por quien responde por la confiabilidad de la flota</b>, no por mí ni por una tabla ajena, y luego <b>validados con nuestros datos</b> (sección 5).</li>
+  </ul>
+
+  <h2 id="d-5">4. Diseño propuesto (criterio propio; para aprobar antes de cambiar la fórmula otra vez)</h2>
   <ol>
     <li><b>Cada señal con su regla escrita, escala 0–100 y vigencia del dato.</b> Un dato viejo no cuenta (ya hecho para aceite: 90 días).</li>
     <li><b>Confiabilidad redefinida:</b> no el conteo de todos los correctivos desde 2022, sino las <b>paradas de 24 h o más de los últimos 12 meses</b> por cada 1.000 h operadas, comparadas con el promedio de su tipo de equipo. Una sola definición de falla en todas las pantallas.</li>
@@ -141,14 +155,14 @@
     <li><b>Bandas calibradas con la flota</b> (percentiles, revisadas cada trimestre) en vez de 55/80 fijos.</li>
   </ol>
 
-  <h2 id="d-5">5. Plan de validación (lo que respalda el Score)</h2>
+  <h2 id="d-6">5. Plan de validación (lo que respalda el Score)</h2>
   <ul>
     <li><b>Prueba central:</b> para una fecha pasada T, calcular el Score de cada equipo con lo que se sabía ese día y contar las paradas de 24 h o más en los 30 y 60 días siguientes. Medir si el cuarto inferior del Score concentra más paradas que el resto (razón de paradas y correlación de rangos). <b>Si no supera al azar, el Score no se usa para decidir.</b></li>
     <li><b>Datos disponibles:</b> el sistema guarda una foto diaria de salud por equipo desde el 12-oct-2026, pero con la fórmula anterior. La fórmula nueva parte el 25-nov-2026. Se puede reconstruir hacia atrás las señales que tienen fecha (aceite, fallas, componentes) para una prueba retrospectiva, y acumular fotos nuevas para validar de verdad en 60 a 90 días.</li>
     <li><b>Regla de cambios (lo que faltó):</b> toda modificación de la fórmula necesita (a) una tabla <b>antes y después de toda la flota</b>, no solo de los equipos que motivaron el cambio, (b) su prueba, (c) una anotación en el inventario de algoritmos y (d) subir <code>SALUD_EQUIPO_METODO_DESDE</code> para no comparar con fotos de otra fórmula.</li>
   </ul>
 
-  <h2 id="d-6">6. Pendientes de decisión</h2>
+  <h2 id="d-7">6. Pendientes de decisión</h2>
   <ul>
     <li>Aprobar el diseño de la sección 4 (en particular la nueva Confiabilidad) y los plazos de validación.</li>
     <li>Decidir si se publica antes el cambio del 24-nov (aceite, mínimo de señales y clasificación de OT) o se espera a la tabla antes/después de toda la flota.</li>

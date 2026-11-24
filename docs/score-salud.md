@@ -46,6 +46,18 @@ Señales con dato por equipo (sin contar Riesgo TBO, que no se pudo medir en est
 
 **Para tener un respaldo real** hay que: (a) que alguien lea las fuentes completas (se pueden enviar los PDF aquí, o abrir el acceso a esos sitios en la configuración de red del entorno), o (b) apoyarse en estándares de confiabilidad conocidos (por ejemplo ISO 14224 para datos de fallas, ISO 55000 para gestión de activos) leídos directamente. Hasta entonces, el único respaldo de peso es la validación contra nuestros propios datos.
 
+### 3.1 Marco aportado por el usuario (24-nov-2026) — sin fuente verificada
+
+El usuario entregó un texto (de origen no indicado; parece salida de otro asistente) que dice que el respaldo técnico es ISO 55000 (gestión de activos) e ISO 17359 (monitoreo de condición), aplicados con RCM y FMECA, y que **no existe una tabla única de porcentajes**: cada faena calibra los pesos con sus ingenieros de confiabilidad y los manuales del fabricante. Propone dos capas y una regla de veto:
+- **Capa A, por categoría de dato** (suma 100 %): monitoreo de condición (aceite, vibraciones, termografía) 40–50 %; telemetría y alertas 20–30 %; historial de fallas y confiabilidad 15–20 %; cumplimiento preventivo y edad 10–15 %.
+- **Capa B, por subsistema del equipo:** por ejemplo tren de potencia 45 %, hidráulico/dirección/frenos 25 %, estructura 15 %, eléctrico y neumático 15 %.
+- **Regla del peor factor:** si un parámetro crítico está en cero (hierro crítico en el aceite del motor, falla activa de frenos) el puntaje general se fuerza a menos de 40 % sin importar el promedio.
+
+Qué se puede sostener y qué no:
+- **Sostenible por lógica de ingeniería** (aunque no verificado en una fuente): ponderar por categoría y por subsistema, tratar la criticidad por separado, mostrar la confianza del dato y usar un veto cuando una señal crítica está en rojo. El propio texto reconoce que **los porcentajes los define cada faena**, así que **no son un estándar**.
+- **No verificado:** los porcentajes «típicos» de la tabla, que SAP o Maximo los usen así, y que ISO 55000 o ISO 17359 prescriban un puntaje de salud. Las dos normas existen, pero hasta donde se sabe no fijan pesos ni umbrales; eso hay que confirmarlo leyéndolas. FMECA se usa para priorizar modos de falla por criticidad (en general con escalas de severidad, ocurrencia y detección), no «calcula matemáticamente» la probabilidad.
+- **Consecuencia para nuestro sistema:** los pesos de cualquier versión nueva deben ser **decididos y firmados por quien responde por la confiabilidad de la flota**, no por mí ni por una tabla ajena, y luego **validados con nuestros datos** (sección 5).
+
 ## 4. Diseño propuesto (criterio propio; para aprobar antes de cambiar la fórmula otra vez)
 
 1. **Cada señal con su regla escrita, escala 0–100 y vigencia del dato.** Un dato viejo no cuenta (ya hecho para aceite: 90 días).
