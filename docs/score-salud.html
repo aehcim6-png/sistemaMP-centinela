@@ -85,8 +85,8 @@
   <p class="eyebrow">SistemaMP Centinela — documentación</p>
   <h1>Score de Salud — especificación y validación — SistemaMP Centinela</h1>
 
-<!--doc-ini--><div class="doc-layout"><nav aria-label="Índice del documento"><details class="doc-index" open><summary>Índice</summary><a class="h2" href="#d-1">1. Qué es hoy (tal como está en el código)</a><a class="h2" href="#d-2">2. Auditoría con los datos reales (24-nov-2026, 42 equipos)</a><a class="h2" href="#d-3">3. En qué se puede apoyar (índice de salud de activos)</a><a class="h2" href="#d-4">4. Diseño propuesto (para aprobar antes de cambiar la fórmula otra vez)</a><a class="h2" href="#d-5">5. Plan de validación (lo que respalda el Score)</a><a class="h2" href="#d-6">6. Pendientes de decisión</a></details></nav><div class="doc-main"><!--/doc-ini-->
-<p>Estado: <b>borrador para decisión</b> (24-nov-2026). Este documento dice cómo funciona hoy el Score de Salud, qué se encontró al auditarlo con toda la flota, en qué se puede apoyar un índice de salud de activos y cómo se valida antes de usarlo para decidir.</p>
+<!--doc-ini--><div class="doc-layout"><nav aria-label="Índice del documento"><details class="doc-index" open><summary>Índice</summary><a class="h2" href="#d-1">1. Qué es hoy (tal como está en el código)</a><a class="h2" href="#d-2">2. Auditoría con los datos reales (24-nov-2026, 42 equipos)</a><a class="h2" href="#d-3">3. De dónde sale esto: qué está respaldado y qué es criterio propio</a><a class="h2" href="#d-4">4. Diseño propuesto (criterio propio; para aprobar antes de cambiar la fórmula otra vez)</a><a class="h2" href="#d-5">5. Plan de validación (lo que respalda el Score)</a><a class="h2" href="#d-6">6. Pendientes de decisión</a></details></nav><div class="doc-main"><!--/doc-ini-->
+<p>Estado: <b>borrador para decisión</b> (24-nov-2026). Este documento dice cómo funciona hoy el Score de Salud, qué se encontró al auditarlo con toda la flota, qué parte tiene respaldo y cuál es criterio propio, y cómo se valida antes de usarlo para decidir.</p>
 
   <h2 id="d-1">1. Qué es hoy (tal como está en el código)</h2>
   <ul>
@@ -114,18 +114,25 @@
     <li><b>Equipos nuevos:</b> el aceite de asentamiento, las pocas fallas y la clasificación de OT dejaban en crítico a equipos con pocas horas (CN-7578 con 0, BD-10139 con 30, CN-10160 con 46). Los cambios del 24-nov corrigen estos tres casos; <b>no se revisaron antes del resto de la flota</b>, y la auditoría de arriba muestra que el problema de fondo es más amplio.</li>
   </ul>
 
-  <h2 id="d-3">3. En qué se puede apoyar (índice de salud de activos)</h2>
-  <p>Lo que se encontró en la práctica del sector (no es un estándar único; es una familia de métodos):</p>
+  <h2 id="d-3">3. De dónde sale esto: qué está respaldado y qué es criterio propio</h2>
+  <p><b>Aviso importante (24-nov-2026):</b> las referencias de abajo salieron de <b>una sola búsqueda web y de los resúmenes que mostró el buscador</b>. Intenté abrir los documentos y <b>no se pudo</b> (el entorno no tiene acceso a esos sitios), así que <b>no están leídas ni verificadas</b> y no pueden citarse como respaldo hasta que alguien las lea. Lo que sigue es lo que el buscador dijo que contienen, nada más.</p>
+  <table>
+    <tr><th>Afirmación</th><th>Fuente (sin verificar)</th><th>Qué se sabe de verdad</th></tr>
+    <tr><td><b>Un índice de salud suma criterios de condición de 0 a 100, cada uno con un peso</b></td><td><a href="https://www.ibm.com/docs/en/SSMNA6_2.1.0/com.ibm.ifeop.doc/overview/ov_concepts.html" target="_blank" rel="noopener noreferrer">IBM, Asset Performance Management</a></td><td>Solo el resumen del buscador. Es documentación de un producto de software, no un estándar.</td></tr>
+    <tr><td><b>La criticidad se trata aparte de la condición</b></td><td><a href="https://www.aer.gov.au/system/files/PWC%20-%2015.5%20Asset%20Health%20and%20Criticality%20Method%20-%2028%20February%202018.pdf" target="_blank" rel="noopener noreferrer">PwC para el regulador australiano</a></td><td>Solo el título y el resumen. No sé si el documento dice eso.</td></tr>
+    <tr><td><b>Hubo un ejercicio de validación de una metodología de índices de activos</b></td><td><a href="https://www.ofgem.gov.uk/sites/default/files/docs/2016/01/appendix_2_validation_exercise.pdf" target="_blank" rel="noopener noreferrer">Ofgem</a></td><td>Solo el título. <b>No sé contra qué se validó</b> (el propio buscador dijo que no mostraba si fue contra fallas reales). Es de redes eléctricas, no de flota móvil.</td></tr>
+    <tr><td><b>El índice debe ser objetivo, verificable y fácil de entender</b></td><td><a href="https://idus.us.es/server/api/core/bitstreams/8a3e9a1c-78b9-486b-872f-1b433f284970/content" target="_blank" rel="noopener noreferrer">Trabajo de la Universidad de Sevilla</a></td><td>Solo el resumen. No sé el título ni el autor.</td></tr>
+    <tr><td><b>Multiplicar por cuánto dato hay</b></td><td><a href="https://image-ppubs.uspto.gov/dirsearch-public/print/downloadPdf/12056671" target="_blank" rel="noopener noreferrer">Patente</a></td><td>Una patente de una empresa: una idea, no una prueba de que funcione.</td></tr>
+  </table>
+  <p><b>Lo que es criterio propio, sin respaldo externo:</b></p>
   <ul>
-    <li>Un índice de salud agrega varios <b>criterios de condición</b>, cada uno en escala 0 (muy malo) a 100 (como nuevo), con un <b>peso</b> que refleja su importancia (<a href="https://www.ibm.com/docs/en/SSMNA6_2.1.0/com.ibm.ifeop.doc/overview/ov_concepts.html" target="_blank" rel="noopener noreferrer">IBM, Asset Performance Management</a>).</li>
-    <li>La <b>criticidad</b> del activo se trata aparte de su condición, para ordenar o ponderar la atención (<a href="https://www.aer.gov.au/system/files/PWC%20-%2015.5%20Asset%20Health%20and%20Criticality%20Method%20-%2028%20February%202018.pdf" target="_blank" rel="noopener noreferrer">PwC para el regulador australiano, método de salud y criticidad</a>).</li>
-    <li>Las metodologías regulatorias de índices de activos del Reino Unido se <b>validaron con datos de varias empresas</b> (<a href="https://www.ofgem.gov.uk/sites/default/files/docs/2016/01/appendix_2_validation_exercise.pdf" target="_blank" rel="noopener noreferrer">Ofgem, ejercicio de validación</a>).</li>
-    <li>Un índice debe basarse en <b>medidas objetivas y verificables</b>, reflejar si el activo sirve para seguir en servicio y ser fácil de entender (criterios de Hjartarson y Otal citados en <a href="https://idus.us.es/server/api/core/bitstreams/8a3e9a1c-78b9-486b-872f-1b433f284970/content" target="_blank" rel="noopener noreferrer">este trabajo de la Universidad de Sevilla</a>).</li>
-    <li>Algunas implementaciones multiplican cada componente por <b>cuánto dato hay disponible</b> (<a href="https://image-ppubs.uspto.gov/dirsearch-public/print/downloadPdf/12056671" target="_blank" rel="noopener noreferrer">ejemplo de patente</a>).</li>
+    <li>La fórmula actual (promedio simple, mismo peso, bandas 55 y 80, probabilidad a 30 días con el tiempo medio entre fallas) la elegí yo al construirla. No viene de ningún estándar. Tampoco la medí contra fallas reales.</li>
+    <li>El diseño de la sección 4 es <b>mi propuesta</b>, no algo que diga una norma. Se apoya en sentido común de ingeniería de confiabilidad, no en una referencia verificada.</li>
+    <li>Lo único que se puede sostener hoy con datos nuestros es la <b>auditoría de la sección 2</b> (se calculó con la base real) y el <b>plan de validación de la sección 5</b>, que es la forma estándar de probar un modelo: comparar lo que predice contra lo que ocurrió después.</li>
   </ul>
-  <p>Límite de esta revisión: no encontré una fuente que muestre una validación contra el historial real de fallas. Eso hay que hacerlo con nuestros datos (sección 5).</p>
+  <p><b>Para tener un respaldo real</b> hay que: (a) que alguien lea las fuentes completas (se pueden enviar los PDF aquí, o abrir el acceso a esos sitios en la configuración de red del entorno), o (b) apoyarse en estándares de confiabilidad conocidos (por ejemplo ISO 14224 para datos de fallas, ISO 55000 para gestión de activos) leídos directamente. Hasta entonces, el único respaldo de peso es la validación contra nuestros propios datos.</p>
 
-  <h2 id="d-4">4. Diseño propuesto (para aprobar antes de cambiar la fórmula otra vez)</h2>
+  <h2 id="d-4">4. Diseño propuesto (criterio propio; para aprobar antes de cambiar la fórmula otra vez)</h2>
   <ol>
     <li><b>Cada señal con su regla escrita, escala 0–100 y vigencia del dato.</b> Un dato viejo no cuenta (ya hecho para aceite: 90 días).</li>
     <li><b>Confiabilidad redefinida:</b> no el conteo de todos los correctivos desde 2022, sino las <b>paradas de 24 h o más de los últimos 12 meses</b> por cada 1.000 h operadas, comparadas con el promedio de su tipo de equipo. Una sola definición de falla en todas las pantallas.</li>
