@@ -1,0 +1,160 @@
+<meta charset="UTF-8">
+<title>Score de Salud — especificación y validación — SistemaMP Centinela — SistemaMP Centinela</title>
+<style>
+  :root{
+    --bg:#0a0c10; --panel:#12151c; --panel2:#171b24; --line:#232838;
+    --ink:#e7e9ee; --ink-dim:#8992a3; --amber:#f2a93b; --green:#3ecf8e;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: "IBM Plex Sans", ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  :root[data-theme="light"]{
+    --bg:#f3f1ea; --panel:#ffffff; --panel2:#faf8f2; --line:#ddd6c4;
+    --ink:#1f2430; --ink-dim:#666f80; --amber:#b5710f; --green:#0e8a5c;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#f3f1ea; --panel:#ffffff; --panel2:#faf8f2; --line:#ddd6c4;
+      --ink:#1f2430; --ink-dim:#666f80; --amber:#b5710f; --green:#0e8a5c;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);padding:40px 20px 72px}
+  .wrap{max-width:760px;margin:0 auto}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);margin:0 0 10px}
+  h1{font-size:clamp(26px,4vw,34px);line-height:1.15;margin:0 0 8px;text-wrap:balance;font-weight:700}
+  h2{font-size:19px;margin:36px 0 12px;font-weight:700;border-bottom:1px solid var(--line);padding-bottom:8px}
+  p{font-size:14.5px;line-height:1.7;color:var(--ink-dim);max-width:66ch}
+  p b, li b, td b{color:var(--ink);font-weight:600}
+  ul,ol{font-size:14.5px;line-height:1.75;color:var(--ink-dim);max-width:66ch;padding-left:22px}
+  li{margin-bottom:4px}
+  code{font-family:var(--mono);font-size:.9em;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:var(--ink)}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--amber);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+  td{color:var(--ink-dim)}
+  .callout{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:8px;padding:14px 16px;margin:20px 0;font-size:13.5px;color:var(--ink-dim)}
+  .callout b{color:var(--ink)}
+  footer{margin-top:48px;padding-top:18px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11.5px;color:var(--ink-dim)}
+  li,p,td,th{overflow-wrap:anywhere}
+  table{display:block;overflow-x:auto}
+  /* doc-lectura */
+  html{scroll-behavior:smooth}
+  body{padding:32px 20px 80px}
+  .wrap{max-width:1120px}
+  .doc-layout{display:grid;grid-template-columns:260px minmax(0,780px);gap:36px;align-items:start;margin-top:8px}
+  .doc-main{min-width:0}
+  .doc-layout>nav{position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow:auto;border-radius:8px}
+  .doc-index{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 10px;font-size:13px}
+  .doc-index summary{cursor:pointer;font-weight:700;color:var(--ink);padding:4px 6px;list-style:none}
+  .doc-index summary::after{content:" ▾";color:var(--amber)}
+  .doc-index a{display:block;color:var(--ink-dim);text-decoration:none;line-height:1.35;padding:5px 8px;border-radius:5px;overflow-wrap:anywhere}
+  .doc-index a.h3{padding-left:20px;font-size:12px}
+  .doc-index a:hover,.doc-index a:focus-visible{color:var(--amber);background:var(--panel2);outline:none}
+  .doc-index a.activa{color:var(--amber);background:var(--panel2);font-weight:600}
+  h2,h3{scroll-margin-top:20px;text-wrap:balance}
+  p,ul,ol{font-size:15.5px;line-height:1.75;max-width:72ch}
+  li{margin-bottom:5px}
+  li,p,td,th{overflow-wrap:break-word}
+  table{display:block;overflow-x:auto;max-width:100%}
+  td:first-child,th:first-child{min-width:96px}
+  pre{max-width:100%;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+  .back-top{position:fixed;right:16px;bottom:16px;background:var(--amber);color:var(--bg);border-radius:999px;padding:9px 14px;font-size:13px;font-weight:700;text-decoration:none;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+  @media(max-width:860px){
+    body{padding:20px 14px 72px}
+    .doc-layout{display:block}
+    .doc-layout>nav{position:static;max-height:60vh;margin:0 0 20px}
+    .doc-index:not([open]) a{display:none}
+    p,ul,ol{font-size:15px}
+  }
+  @media print{
+    html{scroll-behavior:auto}
+    :root{--bg:#fff;--panel:#fff;--panel2:#f4f4f4;--line:#bbb;--ink:#111;--ink-dim:#222;--amber:#7a4a00}
+    body{background:#fff;color:#111;padding:0}
+    .doc-index,.back-top{display:none}
+    .doc-layout{display:block}
+    .wrap{max-width:none}
+    p,ul,ol{max-width:none;font-size:11pt}
+    h2{break-after:avoid}h3{break-after:avoid}
+    .callout,table,tr{break-inside:avoid}
+    a{color:#111;text-decoration:none}
+  }
+/* /doc-lectura */
+</style>
+
+<div class="wrap" id="top">
+  <p class="eyebrow">SistemaMP Centinela — documentación</p>
+  <h1>Score de Salud — especificación y validación — SistemaMP Centinela</h1>
+
+<!--doc-ini--><div class="doc-layout"><nav aria-label="Índice del documento"><details class="doc-index" open><summary>Índice</summary><a class="h2" href="#d-1">1. Qué es hoy (tal como está en el código)</a><a class="h2" href="#d-2">2. Auditoría con los datos reales (24-nov-2026, 42 equipos)</a><a class="h2" href="#d-3">3. En qué se puede apoyar (índice de salud de activos)</a><a class="h2" href="#d-4">4. Diseño propuesto (para aprobar antes de cambiar la fórmula otra vez)</a><a class="h2" href="#d-5">5. Plan de validación (lo que respalda el Score)</a><a class="h2" href="#d-6">6. Pendientes de decisión</a></details></nav><div class="doc-main"><!--/doc-ini-->
+<p>Estado: <b>borrador para decisión</b> (24-nov-2026). Este documento dice cómo funciona hoy el Score de Salud, qué se encontró al auditarlo con toda la flota, en qué se puede apoyar un índice de salud de activos y cómo se valida antes de usarlo para decidir.</p>
+
+  <h2 id="d-1">1. Qué es hoy (tal como está en el código)</h2>
+  <ul>
+    <li><b>Para qué sirve:</b> ordenar los equipos por «cuánto atender» (Mapa de Salud del Dashboard, Torre de Control, Buscar, avisos de «cruzó a salud baja»).</li>
+    <li><b>Fórmula:</b> promedio simple de las señales que tienen dato: Componentes (% con más de 1.000 h de vida restante), Neumáticos (% que no toca cambiar), Aceite (última muestra por componente, ventana de 90 días), Confiabilidad (probabilidad de operar 30 días sin falla a partir del tiempo medio entre fallas) y Riesgo TBO (% de componentes sin riesgo). Todas pesan igual.</li>
+    <li><b>Bandas:</b> menos de 55 crítica, 55–79 advertencia, 80 o más buena. Son valores elegidos a criterio, <b>sin calibrar ni validar</b> (el inventario de algoritmos lo declara «criterio propio, sin umbral certificado»).</li>
+    <li><b>Lo que nunca se hizo:</b> comprobar que un puntaje bajo anticipa más fallas que uno alto.</li>
+  </ul>
+
+  <h2 id="d-2">2. Auditoría con los datos reales (24-nov-2026, 42 equipos)</h2>
+  <p>Señales con dato por equipo (sin contar Riesgo TBO, que no se pudo medir en esta auditoría):</p>
+  <table>
+    <tr><th>Señales con dato</th><th>Equipos</th></tr>
+    <tr><td><b>0</b></td><td>9 (CA-10712, CN-10093, CN-10424, CN-7578, GE-10019, GE-15174, MC-4922, TI-9941, TI-9942)</td></tr>
+    <tr><td><b>1</b></td><td>9 (las camionetas CA-10505, CA-10506, CA-5979, CA-6146, CA-9927; CN-10321, CN-10322; TI-5142, TI-5146)</td></tr>
+    <tr><td><b>2</b></td><td>10</td></tr>
+    <tr><td><b>3</b></td><td>8</td></tr>
+    <tr><td><b>4</b></td><td>6</td></tr>
+  </table>
+  <ul>
+    <li><b>Con la regla de «mínimo 2 señales» (cambio del 24-nov, aún sin publicar) 18 de 42 equipos quedarían «sin datos suficientes».</b> Antes recibían nota con una sola señal.</li>
+    <li><b>La señal de aceite</b> solo existe, con muestras de los últimos 90 días, en 12 equipos; <b>componentes con dato real</b> (instalación y horómetro cargados) en 18.</li>
+    <li><b>Confiabilidad dominada por el conteo de correctivos:</b> los camiones con 100 a 250 fallas registradas desde 2022 (CN-9501 con 250, CN-9500 con 208, CN-9503 con 205…) tienen un tiempo medio entre fallas de 65 a 160 h y una confiabilidad a 30 días de <b>0,1 % a 10,6 %</b>. Casi todos los equipos activos quedan cerca de 0 en esta señal, así que no distingue a unos de otros y arrastra su nota hacia abajo.</li>
+    <li><b>Dos definiciones de falla:</b> el Score del Dashboard y la Torre cuenta como falla cada correctivo de clase «correctiva»; Buscar usa solo las paradas de 24 h o más (la definición que dio el usuario el 23-oct-2026 y que usa el MTBF del Dashboard). El mismo equipo puede mostrar notas distintas en dos pantallas.</li>
+    <li><b>Equipos nuevos:</b> el aceite de asentamiento, las pocas fallas y la clasificación de OT dejaban en crítico a equipos con pocas horas (CN-7578 con 0, BD-10139 con 30, CN-10160 con 46). Los cambios del 24-nov corrigen estos tres casos; <b>no se revisaron antes del resto de la flota</b>, y la auditoría de arriba muestra que el problema de fondo es más amplio.</li>
+  </ul>
+
+  <h2 id="d-3">3. En qué se puede apoyar (índice de salud de activos)</h2>
+  <p>Lo que se encontró en la práctica del sector (no es un estándar único; es una familia de métodos):</p>
+  <ul>
+    <li>Un índice de salud agrega varios <b>criterios de condición</b>, cada uno en escala 0 (muy malo) a 100 (como nuevo), con un <b>peso</b> que refleja su importancia (<a href="https://www.ibm.com/docs/en/SSMNA6_2.1.0/com.ibm.ifeop.doc/overview/ov_concepts.html" target="_blank" rel="noopener noreferrer">IBM, Asset Performance Management</a>).</li>
+    <li>La <b>criticidad</b> del activo se trata aparte de su condición, para ordenar o ponderar la atención (<a href="https://www.aer.gov.au/system/files/PWC%20-%2015.5%20Asset%20Health%20and%20Criticality%20Method%20-%2028%20February%202018.pdf" target="_blank" rel="noopener noreferrer">PwC para el regulador australiano, método de salud y criticidad</a>).</li>
+    <li>Las metodologías regulatorias de índices de activos del Reino Unido se <b>validaron con datos de varias empresas</b> (<a href="https://www.ofgem.gov.uk/sites/default/files/docs/2016/01/appendix_2_validation_exercise.pdf" target="_blank" rel="noopener noreferrer">Ofgem, ejercicio de validación</a>).</li>
+    <li>Un índice debe basarse en <b>medidas objetivas y verificables</b>, reflejar si el activo sirve para seguir en servicio y ser fácil de entender (criterios de Hjartarson y Otal citados en <a href="https://idus.us.es/server/api/core/bitstreams/8a3e9a1c-78b9-486b-872f-1b433f284970/content" target="_blank" rel="noopener noreferrer">este trabajo de la Universidad de Sevilla</a>).</li>
+    <li>Algunas implementaciones multiplican cada componente por <b>cuánto dato hay disponible</b> (<a href="https://image-ppubs.uspto.gov/dirsearch-public/print/downloadPdf/12056671" target="_blank" rel="noopener noreferrer">ejemplo de patente</a>).</li>
+  </ul>
+  <p>Límite de esta revisión: no encontré una fuente que muestre una validación contra el historial real de fallas. Eso hay que hacerlo con nuestros datos (sección 5).</p>
+
+  <h2 id="d-4">4. Diseño propuesto (para aprobar antes de cambiar la fórmula otra vez)</h2>
+  <ol>
+    <li><b>Cada señal con su regla escrita, escala 0–100 y vigencia del dato.</b> Un dato viejo no cuenta (ya hecho para aceite: 90 días).</li>
+    <li><b>Confiabilidad redefinida:</b> no el conteo de todos los correctivos desde 2022, sino las <b>paradas de 24 h o más de los últimos 12 meses</b> por cada 1.000 h operadas, comparadas con el promedio de su tipo de equipo. Una sola definición de falla en todas las pantallas.</li>
+    <li><b>Confianza del dato visible:</b> la nota se muestra siempre con «n de total señales». Menos de 2 señales: «sin datos suficientes».</li>
+    <li><b>Pesos escritos y criticidad aparte:</b> los pesos van documentados (parten iguales y solo cambian si la validación lo respalda); la criticidad ordena la atención, no cambia el puntaje.</li>
+    <li><b>Bandas calibradas con la flota</b> (percentiles, revisadas cada trimestre) en vez de 55/80 fijos.</li>
+  </ol>
+
+  <h2 id="d-5">5. Plan de validación (lo que respalda el Score)</h2>
+  <ul>
+    <li><b>Prueba central:</b> para una fecha pasada T, calcular el Score de cada equipo con lo que se sabía ese día y contar las paradas de 24 h o más en los 30 y 60 días siguientes. Medir si el cuarto inferior del Score concentra más paradas que el resto (razón de paradas y correlación de rangos). <b>Si no supera al azar, el Score no se usa para decidir.</b></li>
+    <li><b>Datos disponibles:</b> el sistema guarda una foto diaria de salud por equipo desde el 12-oct-2026, pero con la fórmula anterior. La fórmula nueva parte el 25-nov-2026. Se puede reconstruir hacia atrás las señales que tienen fecha (aceite, fallas, componentes) para una prueba retrospectiva, y acumular fotos nuevas para validar de verdad en 60 a 90 días.</li>
+    <li><b>Regla de cambios (lo que faltó):</b> toda modificación de la fórmula necesita (a) una tabla <b>antes y después de toda la flota</b>, no solo de los equipos que motivaron el cambio, (b) su prueba, (c) una anotación en el inventario de algoritmos y (d) subir <code>SALUD_EQUIPO_METODO_DESDE</code> para no comparar con fotos de otra fórmula.</li>
+  </ul>
+
+  <h2 id="d-6">6. Pendientes de decisión</h2>
+  <ul>
+    <li>Aprobar el diseño de la sección 4 (en particular la nueva Confiabilidad) y los plazos de validación.</li>
+    <li>Decidir si se publica antes el cambio del 24-nov (aceite, mínimo de señales y clasificación de OT) o se espera a la tabla antes/después de toda la flota.</li>
+  </ul>
+<!--doc-fin--></div></div><!--/doc-fin-->
+
+  <a class="back-top" href="#top">↑ Arriba</a>
+
+  <footer>SistemaMP Centinela · Besalco Minería — Centinela Ripios OXE</footer>
+</div>
+<script>/*doc-js*/
+(function(){var L=[].slice.call(document.querySelectorAll('.doc-index a'));if(!L.length||!('IntersectionObserver' in window))return;
+var m={};L.forEach(function(a){m[a.getAttribute('href').slice(1)]=a;});
+var o=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){L.forEach(function(a){a.classList.remove('activa');});var a=m[e.target.id];if(a){a.classList.add('activa');if(a.scrollIntoView&&getComputedStyle(a.closest('.doc-index')).position==='sticky'){var c=a.closest('.doc-index');if(a.offsetTop<c.scrollTop||a.offsetTop>c.scrollTop+c.clientHeight-40)c.scrollTop=a.offsetTop-60;}}}});},{rootMargin:'0px 0px -75% 0px'});
+Object.keys(m).forEach(function(id){var h=document.getElementById(id);if(h)o.observe(h);});})();
+/*/doc-js*/</script>
