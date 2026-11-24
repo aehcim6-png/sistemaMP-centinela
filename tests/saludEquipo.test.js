@@ -215,3 +215,30 @@ describe('saludMatrizEquipos: la matriz calculada para la flota (24-nov-2026)', 
     expect(L.saludSubsistemaDe('Radiador')).toBe('otros');
   });
 });
+
+describe('método del Score de Salud en uso (24-nov-2026)', () => {
+  const L = require('../logic.js');
+  const hoy = new Date('2026-11-24T12:00:00Z');
+  const eq = [{ sigla: 'A-1', tipo: 'Camion', horomActual: 10000, hrsDia: 12, diasParaPM: 20, fechaProxPM: '2026-12-14', frecPM: 250 }];
+  const comp = [{ sigla: 'A-1', comp: 'Motor', esOriginal: true, vidaUtil: 15000 }];
+  const aceiteAlerta = [{ _sigla: 'A-1', fecha: '2026-11-15', componente: 'MOTOR', estado: 'ALERTA' }];
+  afterEach(() => { delete global.window; });
+  it('por defecto es la matriz: el Score trae sus categorías, la confianza y conserva el Score anterior', () => {
+    const r = L.equiposConSaludFlota(eq, comp, [], [], [], null, hoy)[0];
+    expect(r.score.metodo).toBe('matriz');
+    expect(r.score.detalle.map(d => d.nombre)).toEqual(['Condición', 'Historial', 'Preventivo']);
+    expect(r.scoreAnterior.detalle.map(d => d.nombre)).toContain('Componentes');
+  });
+  it('un aceite en alerta en el motor activa el veto: el Score queda en 39 o menos y dice por qué', () => {
+    const r = L.equiposConSaludFlota(eq, comp, [], aceiteAlerta, [], null, hoy)[0];
+    expect(r.score.valor).toBeLessThanOrEqual(39);
+    expect(r.score.veto.motivos).toEqual(['aceite en alerta: MOTOR']);
+  });
+  it('con window._saludMetodo = «actual» vuelve al promedio simple de antes', () => {
+    global.window = { _saludMetodo: 'actual' };
+    expect(L.saludMetodoVigente()).toBe('actual');
+    const r = L.equiposConSaludFlota(eq, comp, [], [], [], null, hoy)[0];
+    expect(r.score.metodo).toBeUndefined();
+    expect(r.score.detalle.map(d => d.nombre)).toContain('Componentes');
+  });
+});

@@ -961,7 +961,7 @@ export function renderDash(){
   if(equiposConSalud.length){
     // Antes era un bloque aparte justo debajo del Mapa de Salud, con los mismos equipos otra vez (23-nov-2026, «está repetido»): ahora es un desplegable dentro del mismo bloque, cerrado de entrada.
     saludBajaBlock+='<details style="margin-top:14px"><summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--tx2)">'+ICONS.stetho+' Los '+equiposConSalud.length+' con menor salud (Score &lt; 70) — con tendencia y desglose</summary>';
-    saludBajaBlock+='<div class="tbl-wrap" style="margin-top:8px"><table style="font-size:11px"><tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Score</th><th>Tendencia 7d</th><th>Componentes</th><th>Neumáticos</th><th>Aceite</th><th>Confiabilidad</th></tr>';
+    saludBajaBlock+='<div class="tbl-wrap" style="margin-top:8px"><table style="font-size:11px"><tr><th>Equipo</th><th>Tipo</th><th>Modelo</th><th>Score</th><th>Tendencia 7d</th>'+(equiposConSalud.length&&equiposConSalud[0].score.metodo==='matriz'?'<th>Condición</th><th>Historial</th><th>Preventivo</th><th>Veto</th>':'<th>Componentes</th><th>Neumáticos</th><th>Aceite</th><th>Confiabilidad</th>')+'</tr>';
     equiposConSalud.forEach(function(r){
       var col=r.score.valor>=55?'var(--ac)':'var(--danger)';
       var d={};r.score.detalle.forEach(function(c){d[c.nombre]=c.valor;});
@@ -975,10 +975,15 @@ export function renderDash(){
         '<td style="font-size:10px">'+escapeHtml(r.modelo)+'</td>'+
         '<td class="mono" style="color:'+col+';font-weight:700">'+r.score.valor+'%</td>'+
         '<td style="font-size:10px">'+tendHtml+'</td>'+
-        '<td style="font-size:10px;color:var(--tx3)">'+(d['Componentes']==null?'—':d['Componentes']+'%')+'</td>'+
-        '<td style="font-size:10px;color:var(--tx3)">'+(d['Neumáticos']==null?'—':d['Neumáticos']+'%')+'</td>'+
-        '<td style="font-size:10px;color:var(--tx3)">'+(d['Aceite']==null?'—':d['Aceite']+'%')+'</td>'+
-        '<td style="font-size:10px;color:var(--tx3)">'+(d['Confiabilidad']==null?'—':d['Confiabilidad']+'%')+'</td>'+
+        (r.score.metodo==='matriz'
+          ?'<td style="font-size:10px;color:var(--tx3)">'+(d['Condición']==null?'—':d['Condición']+'%')+'</td>'+
+           '<td style="font-size:10px;color:var(--tx3)">'+(d['Historial']==null?'—':d['Historial']+'%')+'</td>'+
+           '<td style="font-size:10px;color:var(--tx3)">'+(d['Preventivo']==null?'—':d['Preventivo']+'%')+'</td>'+
+           '<td style="font-size:10px;color:var(--danger)">'+(r.score.veto?escapeHtml(r.score.veto.motivos.join(' · ')):'')+'</td>'
+          :'<td style="font-size:10px;color:var(--tx3)">'+(d['Componentes']==null?'—':d['Componentes']+'%')+'</td>'+
+           '<td style="font-size:10px;color:var(--tx3)">'+(d['Neumáticos']==null?'—':d['Neumáticos']+'%')+'</td>'+
+           '<td style="font-size:10px;color:var(--tx3)">'+(d['Aceite']==null?'—':d['Aceite']+'%')+'</td>'+
+           '<td style="font-size:10px;color:var(--tx3)">'+(d['Confiabilidad']==null?'—':d['Confiabilidad']+'%')+'</td>')+
         '</tr>';
     });
     saludBajaBlock+='</table></div></details>';

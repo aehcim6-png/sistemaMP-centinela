@@ -4037,6 +4037,10 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   </ul>
   <p><b>Cambios</b>: aceite de los últimos 90 días con NORMAL=1, PRECAUCIÓN=0,5 y otro=0; confiabilidad solo con 3 o más fallas; con menos de 2 señales el equipo queda «sin datos suficientes»; el clasificador de OT (JS y SQL) deja de contar focos, backlog y golpes como falla. Buscar usa las mismas reglas que Dashboard y Torre. <b>Efecto</b>: cambia el puntaje de toda la flota; la tendencia de 7 días y los avisos de cruce a salud baja parten de cero desde el 25-nov-2026.</p>
 
+  <h3 id="d-260">260. La matriz de salud pasa a ser el Score en uso (2026-11-24)</h3>
+  <p>El usuario aprobó adoptar la matriz propuesta. <code>equiposConSaludFlota</code> calcula ahora el Score con la matriz (Condición, Historial, Preventivo, con veto por señal crítica) y conserva el anterior en <code>scoreAnterior</code>. Dashboard, Torre de Control y Buscar la usan; la Torre muestra la comparación con el Score anterior y un botón para volver al método anterior (se recuerda en el navegador). Los avisos de cruce a salud baja parten de cero desde el 25-nov-2026.</p>
+  <p><b>Límites</b>: los pesos no tienen firma de un ingeniero de confiabilidad y la validación del Score completo está pendiente. Un equipo con señal crítica queda con 39 o menos.</p>
+
 <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

@@ -447,6 +447,11 @@ export function renderBuscar(){
     var confiabilidadPct=saludConfiabilidadPct(paradasEqArr.map(function(o){return o.horom;}),eqObj?eqObj.hrsDia:null);
     var tboEq=(typeof tboSaludFlotaAuto==='function'?tboSaludFlotaAuto():{})[fEq]||null;
     var scoreEq=scoreSaludEquipo({componentesPct:componentesPct,neumaticosPct:neumaticosPct,aceitePct:aceitePct,confiabilidadPct:confiabilidadPct,tboPct:tboEq?tboEq.pct:null});
+    // Método vigente (24-nov-2026): con la matriz, el Score de la ficha es el mismo que ven el Dashboard y la Torre (saludMatrizEquipos con los datos de este equipo, ventanas desde hoy y no desde el rango elegido).
+    if(typeof saludMetodoVigente==='function'&&saludMetodoVigente()==='matriz'&&eqObj){
+      var _mEq=saludMatrizEquipos([eqObj],compF,neuF,aceTodos.filter(function(m){return m._sigla===fEq;}),otConHist.filter(function(o){return o.sigla===fEq;}),tboEq?(function(){var t={};t[fEq]=tboEq;return t;})():null,new Date());
+      if(_mEq[fEq])scoreEq=saludScoreDesdeMatriz(_mEq[fEq]);
+    }
     var scoreCol=scoreEq.valor==null?'var(--bd)':scoreEq.valor>=80?'var(--ok)':scoreEq.valor>=55?'var(--ac)':'var(--danger)';
     // Tendencia — el Dashboard es quien guarda el snapshot diario por equipo
     // (saludEquipoHist) cada vez que se abre; acá solo se lee, con el mismo
@@ -481,6 +486,7 @@ export function renderBuscar(){
       '<div style="font-size:11px;font-weight:600;margin-top:2px;color:'+(tendenciaEq.delta>0?'var(--ok)':tendenciaEq.delta<0?'var(--danger)':'var(--tx3)')+'">'+(tendenciaEq.delta>0?'▲':tendenciaEq.delta<0?'▼':'→')+' '+Math.abs(tendenciaEq.delta)+' pts vs hace 7 días</div>'
       :(scoreEq.valor!=null?'<div style="font-size:9px;color:var(--tx3);margin-top:2px">Sin dato de hace 7 días aún</div>':''))+
     (motivoEq?'<div style="font-size:10px;color:var(--tx2);margin-top:4px">Principal causa: <b>'+escapeHtml(motivoEq.nombre)+'</b> ('+motivoEq.valor+'%)</div>':'')+
+    (scoreEq.veto?'<div style="font-size:10px;color:var(--danger);margin-top:4px" title="Regla de veto de la matriz de salud: una señal crítica limita el Score a 39 o menos">⛔ Veto: '+scoreEq.veto.motivos.map(escapeHtml).join(' · ')+'</div>':'')+
     '</div>'+
     '<div style="display:flex;gap:6px;flex-wrap:wrap;flex:1">'+
     scoreEq.detalle.map(function(c){

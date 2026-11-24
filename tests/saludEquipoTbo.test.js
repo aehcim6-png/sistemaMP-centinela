@@ -1,5 +1,5 @@
 // Etapa 3 de la ficha de componente: el Score de Salud del equipo incorpora el riesgo de componentes (señal "Riesgo TBO") sin romper lo anterior.
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 const L = require('../logic.js');
 
 const hoy = new Date('2026-10-10T12:00:00');
@@ -76,6 +76,9 @@ describe('tboPctSano / tboFichasFlota', () => {
 });
 
 describe('equiposConSaludFlota con riesgo TBO', () => {
+  // Estas pruebas son del método anterior (promedio simple): el método por defecto desde el 24-nov-2026 es la matriz.
+  beforeAll(() => { global.window = { _saludMetodo: 'actual' }; });
+  afterAll(() => { delete global.window; });
   const eqs = [{ sigla: 'CN-1', tipo: 'Camion', modelo: 'HD785-7', horomActual: 12534, hrsDia: 20 }];
   it('sin el 6º argumento queda igual que antes (compatibilidad)', () => {
     const r = L.equiposConSaludFlota(eqs, [], [], [], []);

@@ -115,7 +115,8 @@ function _torreComparacionHTML(equipos,mat){
   var banda=function(v){return v==null?'sin datos':v>=80?'buena':v>=55?'advertencia':'crítica';};
   var filas=equipos.map(function(r){
     var m=mat[r.sigla];if(!m)return null;
-    return{sigla:r.sigla,tipo:r.tipo,act:r.score.valor,nuevo:m.matriz.valor,bAct:banda(r.score.valor),bNue:banda(m.matriz.valor),conf:m.matriz.confianza,m:m};
+    var ant=(r.scoreAnterior||r.score).valor;   // el Score anterior (promedio simple) para comparar con la matriz
+    return{sigla:r.sigla,tipo:r.tipo,act:ant,nuevo:m.matriz.valor,bAct:banda(ant),bNue:banda(m.matriz.valor),conf:m.matriz.confianza,m:m};
   }).filter(Boolean);
   var cambian=filas.filter(function(f){return f.bAct!==f.bNue;});
   var peor=function(b){return b==='crítica'?0:b==='advertencia'?1:b==='buena'?2:3;};
@@ -126,10 +127,10 @@ function _torreComparacionHTML(equipos,mat){
   var col=function(v){return v==null?'var(--tx3)':v>=80?'var(--ok)':v>=55?'var(--ac)':'var(--danger)';};
   filas.sort(function(a,b){var da=(a.nuevo==null||a.act==null)?999:Math.abs(a.nuevo-a.act),db=(b.nuevo==null||b.act==null)?999:Math.abs(b.nuevo-b.act);return db-da;});
   var f1=function(v){return v==null?'—':v;};
-  return '<details style="margin:0 0 18px;border:1px solid var(--bd);border-radius:10px;padding:8px 12px;background:var(--bg2)"><summary style="cursor:pointer;font-weight:600;font-size:13px">🧪 Comparación: Score actual vs. matriz propuesta <span style="font-weight:400;color:var(--tx3);font-size:11px">(borrador, no cambia lo que se ve arriba)</span></summary>'+
-    '<div style="font-size:11px;color:var(--tx3);margin:8px 0">Lo que cambiaría para cada equipo si se adoptara la matriz (historial de fallas 55 %, condición 30 %, preventivo 15 %; veto por aceite en alerta del tren de potencia, componente vencido o parada activa de 24 h o más). Pesos y señales críticas pendientes de aprobación — ver <code>docs/score-salud.md</code>.</div>'+
+  return '<details style="margin:0 0 18px;border:1px solid var(--bd);border-radius:10px;padding:8px 12px;background:var(--bg2)"><summary style="cursor:pointer;font-weight:600;font-size:13px">🧪 Comparación: Score anterior vs. matriz <span style="font-weight:400;color:var(--tx3);font-size:11px">('+(typeof saludMetodoVigente==='function'&&saludMetodoVigente()==='matriz'?'la matriz es el Score en uso':'borrador: el Score en uso es el anterior')+')</span></summary>'+
+    '<div style="font-size:11px;color:var(--tx3);margin:8px 0">Matriz: historial de fallas 55 %, condición 30 %, preventivo 15 %; veto por aceite en alerta del tren de potencia, componente vencido o parada activa de 24 h o más — ver <code>docs/score-salud.md</code>. «Anterior» es el promedio simple de componentes, neumáticos, aceite, confiabilidad y TBO. <button class="btn-s btn-o" style="margin-left:6px" onclick="_torreCambiarMetodo()">Usar '+(typeof saludMetodoVigente==='function'&&saludMetodoVigente()==='matriz'?'el Score anterior':'la matriz')+'</button></div>'+
     '<div style="font-size:12px;margin-bottom:8px">Empeoran de banda: <b style="color:var(--danger)">'+empeoran+'</b> · Mejoran: <b style="color:var(--ok)">'+mejoran+'</b> · Con veto: <b>'+vetos+'</b> · Pasan a «sin datos suficientes»: <b>'+sinDatos+'</b> · Sin cambio de banda: <b>'+(filas.length-cambian.length)+'</b> de '+filas.length+'</div>'+
-    '<div class="tbl-wrap"><table style="font-size:11px"><tr><th style="text-align:left">Equipo</th><th style="text-align:left">Tipo</th><th>Actual</th><th>Matriz</th><th>Confianza</th><th>Condición</th><th>Historial</th><th>Preventivo</th><th style="text-align:left">Veto / motivo</th></tr>'+
+    '<div class="tbl-wrap"><table style="font-size:11px"><tr><th style="text-align:left">Equipo</th><th style="text-align:left">Tipo</th><th>Anterior</th><th>Matriz</th><th>Confianza</th><th>Condición</th><th>Historial</th><th>Preventivo</th><th style="text-align:left">Veto / motivo</th></tr>'+
     filas.map(function(f){
       var cond=f.m.matriz.categorias.filter(function(c){return c.nombre==='condicion';})[0];
       return '<tr><td class="mono" style="color:var(--ac);text-align:left">'+escapeHtml(f.sigla)+'</td><td style="text-align:left">'+escapeHtml(f.tipo||'')+'</td>'+
@@ -140,6 +141,16 @@ function _torreComparacionHTML(equipos,mat){
         '<td style="text-align:left;font-size:10px;color:var(--danger)">'+(f.m.criticos.length?escapeHtml(f.m.criticos.join(' · ')):'')+'</td></tr>';
     }).join('')+'</table></div></details>';
 }
+
+// Cambia el método del Score de Salud (matriz ↔ anterior) en este navegador y redibuja. Se recuerda en localStorage; el valor por defecto lo fija SALUD_METODO_DEFECTO (logic.js).
+window._torreCambiarMetodo=function(){
+  var nuevo=(typeof saludMetodoVigente==='function'&&saludMetodoVigente()==='matriz')?'actual':'matriz';
+  window._saludMetodo=nuevo;
+  try{localStorage.setItem('saludMetodo',nuevo);}catch(e){}
+  if(typeof toast==='function')toast('Score de Salud: '+(nuevo==='matriz'?'matriz':'método anterior'));
+  if(typeof refreshAll==='function')refreshAll();else renderTorre();
+};
+try{var _gm=localStorage.getItem('saludMetodo');if(_gm==='actual'||_gm==='matriz')window._saludMetodo=_gm;}catch(e){}
 
 export function renderTorre(){
   _asegurarEstiloTorre();
@@ -189,7 +200,7 @@ export function renderTorre(){
     '<div style="flex:1;min-width:110px;background:var(--bg2);border:1px solid var(--bd);border-left:3px solid var(--tx3);border-radius:10px;padding:12px 14px"><div style="font-size:26px;font-weight:700;color:var(--tx3)">'+cNone+'</div><div style="font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em">Sin datos</div></div>'+
     '</div>';
 
-  html+='<div style="font-size:11px;color:var(--tx3);margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--bd)">🟢 ≥80% · 🟡 55-79% · 🔴 &lt;55% · ⚪ sin datos suficientes — clic en un equipo para ver el detalle.</div>';
+  html+='<div style="font-size:11px;color:var(--tx3);margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--bd)">🟢 ≥80% · 🟡 55-79% · 🔴 &lt;55% · ⚪ sin datos suficientes — clic en un equipo para ver el detalle. Score: '+(typeof saludMetodoVigente==='function'&&saludMetodoVigente()==='matriz'?'<b>matriz de salud</b> (historial, condición y preventivo, con veto por señal crítica)':'<b>método anterior</b> (promedio simple)')+'.</div>';
 
   html+=_torreComparacionHTML(equipos,matrizFlota);
 
@@ -285,6 +296,7 @@ window._torreAbrirDrawer=function(sigla){
     else{nEl.textContent=r.score.n+' de '+r.score.total+' señales con dato'+(r.tbo&&r.tbo.enRiesgo?' · '+r.tbo.enRiesgo+' componente'+(r.tbo.enRiesgo>1?'s':'')+' en riesgo':'');nEl.style.color='var(--tx3)';}
   }
   var dimsHtml='';
+  if(r.score.veto)dimsHtml+='<div style="font-size:11px;color:var(--danger);padding:7px 0;border-bottom:1px solid var(--bd)" title="Una señal crítica limita el Score a 39 o menos">⛔ <b>Veto</b>: '+r.score.veto.motivos.map(escapeHtml).join(' · ')+'</div>';
   (r.score.detalle||[]).forEach(function(d){
     dimsHtml+='<div style="display:flex;justify-content:space-between;font-size:12px;padding:7px 0;border-bottom:1px solid var(--bd)">'+
       '<span style="color:var(--tx3)">'+escapeHtml(d.nombre)+'</span>'+

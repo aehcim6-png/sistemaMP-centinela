@@ -7631,6 +7631,13 @@ El usuario notó equipos relativamente nuevos con salud baja. Se revisaron los d
 - **Una sola señal:** un equipo con un solo dato recibía nota (0 o 100) igual que uno con cinco.
 **Cambios** (`logic.js`; `tests/saludEquipo.test.js`, `tests/saludEquipoTbo.test.js`, `tests/claseOTHist.test.js`): aceite de los últimos 90 días con NORMAL=1, PRECAUCIÓN=0,5, otro=0 y nombres unificados (`saludAceitePct`); confiabilidad solo con 3 o más fallas (`saludConfiabilidadPct`); con menos de 2 señales el equipo queda «sin datos suficientes» (`valor` null, `insuficiente`); el clasificador de OT (JS y SQL, migración `20261124120000`, aplicada con reclasificación del histórico) deja de contar focos, backlog y golpes como falla. Buscar usa las mismas reglas que Dashboard y Torre.
 **Efecto:** cambia el puntaje de toda la flota (algunos suben, otros pasan a «sin datos suficientes»). `SALUD_EQUIPO_METODO_DESDE` pasó al 25-nov-2026 para no avisar «cruzó a salud baja» ni mostrar tendencias contra fotos calculadas con la fórmula anterior; la tendencia de 7 días vuelve a aparecer tras una semana de fotos nuevas.
+### 260. La matriz de salud pasa a ser el Score en uso (2026-11-24)
+
+El usuario aprobó adoptar la matriz propuesta (§259 y `docs/score-salud.md` §6). **Qué cambió:**
+- `equiposConSaludFlota` (`logic.js`) calcula el Score con `saludMatrizEquipos` y lo devuelve en `score` (valor, n y total de categorías, detalle Condición / Historial / Preventivo, veto, confianza); el Score anterior queda en `scoreAnterior`. `saludMetodoVigente` decide el método: `matriz` por defecto o `actual` si `window._saludMetodo` (o el valor recordado en el navegador) lo dice.
+- **Dashboard:** el Mapa de Salud y la lista de salud baja usan la matriz (columnas Condición, Historial, Preventivo y Veto). **Torre de Control:** fichas, detalle con el veto, comparación con el Score anterior y botón para volver al método anterior. **Buscar:** la ficha usa la matriz con los datos del equipo (ventanas desde hoy). Los avisos de cruce a salud baja siguen usando `SALUD_EQUIPO_METODO_DESDE` = 25-nov-2026: no se compara contra fotos de otra fórmula.
+- **Reversible:** el botón de la Torre o `SALUD_METODO_DEFECTO = 'actual'`.
+**Límites:** los pesos no tienen firma de un ingeniero de confiabilidad y la validación del Score completo (con condición, componentes y neumáticos) todavía no se pudo hacer: se hará con las fotos diarias nuevas. Un equipo con una señal crítica queda con 39 o menos aunque el resto sea sano.
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el
