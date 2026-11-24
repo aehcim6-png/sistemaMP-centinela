@@ -242,6 +242,10 @@ td.calc{color:var(--tx3);font-style:italic}
    igual que siempre, sin insignia). */
 .sec-t svg:first-child{width:16px;height:16px;padding:6px;margin-right:8px;margin-bottom:2px;background:var(--ac);color:var(--bg);border-radius:50%;box-shadow:var(--shadow-sm);vertical-align:middle;flex-shrink:0}
 .sec-s{font-size:12px;color:var(--tx3)}
+.nota-btn{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;margin-left:8px;padding:0;border:1px solid var(--bd);border-radius:50%;background:transparent;color:var(--tx3);font:600 11px/1 inherit;cursor:pointer;vertical-align:middle}
+.nota-btn:hover,.nota-btn:focus-visible{color:var(--ac);border-color:var(--ac)}
+.nota-btn[aria-expanded=false]{opacity:.7}
+@media print{.nota-btn{display:none}}
 
 .prog-grid{display:grid;grid-template-columns:160px repeat(12,1fr);gap:2px;font-size:11px}
 .pg-c{padding:5px 3px;text-align:center;border-radius:3px;font-weight:600}
@@ -1498,6 +1502,35 @@ function agruparAcciones(root){
     cont.appendChild(g);
   });
 }
+// Notas plegables (2026-11-24): bajo el título de cada pestaña (y de cada sub-pestaña) hay una línea de nota o comentario (.sec-s / .dash-sec-sub). Se le agrega un botón ⓘ para
+// ocultarla o volver a mostrarla. Lo que se elige se recuerda por pestaña y título en este navegador (localStorage 'notasOcultas'); por defecto se ven todas. Es el mismo observador
+// de arriba el que lo repite cada vez que una pestaña se redibuja.
+function _notasOcultas(){try{return JSON.parse(localStorage.getItem('notasOcultas')||'{}')||{};}catch(e){return {};}}
+function notasPlegables(root){
+  (root||document).querySelectorAll('.sec-s:not([data-nota]),.dash-sec-sub:not([data-nota])').forEach(function(n){
+    n.setAttribute('data-nota','1');
+    if(!n.textContent.trim())return;
+    const sec=n.closest('.sec');
+    const tit=n.previousElementSibling&&/\b(sec-t|dash-sec-title)\b/.test(n.previousElementSibling.className)?n.previousElementSibling:null;
+    const clave=(sec?sec.id:'')+'|'+(tit?tit.textContent:n.textContent).trim().replace(/\s+/g,' ').slice(0,60);
+    const b=document.createElement('button');
+    b.type='button';b.className='nota-btn';b.textContent='ⓘ';
+    const poner=function(oculta){
+      n.style.display=oculta?'none':'';
+      b.setAttribute('aria-expanded',oculta?'false':'true');
+      b.title=oculta?'Mostrar la nota de esta pestaña':'Ocultar la nota de esta pestaña';
+      b.setAttribute('aria-label',b.title);
+    };
+    poner(!!_notasOcultas()[clave]);
+    b.addEventListener('click',function(e){
+      e.stopPropagation();
+      const oculta=n.style.display!=='none';
+      poner(oculta);
+      try{const o=_notasOcultas();if(oculta)o[clave]=1;else delete o[clave];localStorage.setItem('notasOcultas',JSON.stringify(o));}catch(x){}
+    });
+    if(tit)tit.appendChild(b);else n.parentNode.insertBefore(b,n);
+  });
+}
 function masAccAlternar(btn){
   const w=btn.closest('.mas-acc');
   const abrir=!w.classList.contains('abierto');
@@ -1519,8 +1552,8 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')document.que
   // sub-pestañas: deja visible la activa (si hay muchas, la barra se desliza)
   const centrarSub=()=>document.querySelectorAll('#main .subtabs:not([data-ctr])').forEach(b=>{const on=b.querySelector('.subtab.on');if(!on)return;b.setAttribute('data-ctr','1');b.scrollLeft=Math.max(0,on.offsetLeft-(b.clientWidth-on.clientWidth)/2);});
   // un redibujado puede dejar visibles botones de escritura que el rol lector ya había ocultado: se reaplica (solo para ese rol)
-  const run=()=>{pend=false;agruparAcciones($('main'));centrarSub();mensajesTablaVacia($('main'));if(window._userRole==='lector'&&typeof _aplicarRolUI==='function')_aplicarRolUI();};
-  const iniciar=()=>{const m=$('main');if(!m||!window.MutationObserver)return;agruparAcciones(m);new MutationObserver(()=>{if(!pend){pend=true;requestAnimationFrame(run);}}).observe(m,{childList:true,subtree:true});};
+  const run=()=>{pend=false;agruparAcciones($('main'));notasPlegables($('main'));centrarSub();mensajesTablaVacia($('main'));if(window._userRole==='lector'&&typeof _aplicarRolUI==='function')_aplicarRolUI();};
+  const iniciar=()=>{const m=$('main');if(!m||!window.MutationObserver)return;agruparAcciones(m);notasPlegables(m);new MutationObserver(()=>{if(!pend){pend=true;requestAnimationFrame(run);}}).observe(m,{childList:true,subtree:true});};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',iniciar);else iniciar();
 })();
 

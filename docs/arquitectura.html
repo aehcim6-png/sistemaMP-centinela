@@ -4041,6 +4041,10 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
   <p>El usuario aprobó adoptar la matriz propuesta. <code>equiposConSaludFlota</code> calcula ahora el Score con la matriz (Condición, Historial, Preventivo, con veto por señal crítica) y conserva el anterior en <code>scoreAnterior</code>. Dashboard, Torre de Control y Buscar la usan; la Torre muestra la comparación con el Score anterior y un botón para volver al método anterior (se recuerda en el navegador). Los avisos de cruce a salud baja parten de cero desde el 25-nov-2026.</p>
   <p><b>Límites</b>: los pesos no tienen firma de un ingeniero de confiabilidad y la validación del Score completo está pendiente. Un equipo con señal crítica queda con 39 o menos.</p>
 
+  <h3 id="d-261">261. Notas plegables en cada pestaña (2026-11-24)</h3>
+  <p>Bajo el título de cada pestaña y sub-pestaña hay una línea de nota o comentario. <code>notasPlegables</code> (<code>index.html</code>, junto a <code>agruparAcciones</code>) agrega a cada una un botón ⓘ que la oculta o la vuelve a mostrar. Va colgado del mismo <code>MutationObserver</code> que repite <code>agruparAcciones</code> tras cada redibujado, así que cubre todas las pestañas sin tocar los archivos de <code>modules/renders</code>. La elección se guarda en <code>localStorage['notasOcultas']</code> por pestaña y título; por defecto todas se ven.</p>
+  <p><b>Límite</b>: solo cubre la línea de nota bajo el título; los recuadros explicativos largos dentro de una pantalla no llevan este botón. Prueba: <code>tests/e2e/notas-plegables.spec.js</code>.</p>
+
 <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de

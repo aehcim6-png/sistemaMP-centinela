@@ -7638,6 +7638,10 @@ El usuario aprobó adoptar la matriz propuesta (§259 y `docs/score-salud.md` §
 - **Dashboard:** el Mapa de Salud y la lista de salud baja usan la matriz (columnas Condición, Historial, Preventivo y Veto). **Torre de Control:** fichas, detalle con el veto, comparación con el Score anterior y botón para volver al método anterior. **Buscar:** la ficha usa la matriz con los datos del equipo (ventanas desde hoy). Los avisos de cruce a salud baja siguen usando `SALUD_EQUIPO_METODO_DESDE` = 25-nov-2026: no se compara contra fotos de otra fórmula.
 - **Reversible:** el botón de la Torre o `SALUD_METODO_DEFECTO = 'actual'`.
 **Límites:** los pesos no tienen firma de un ingeniero de confiabilidad y la validación del Score completo (con condición, componentes y neumáticos) todavía no se pudo hacer: se hará con las fotos diarias nuevas. Un equipo con una señal crítica queda con 39 o menos aunque el resto sea sano.
+### 261. Notas plegables en cada pestaña (2026-11-24)
+
+Bajo el título de cada pestaña y sub-pestaña hay una línea de nota o comentario (`.sec-s`, y `.dash-sec-sub` en el Dashboard). **Qué se hizo:** `notasPlegables` (`index.html`, junto a `agruparAcciones`) agrega a cada una un botón ⓘ que la oculta o la vuelve a mostrar. Va colgado del mismo `MutationObserver` que ya repite `agruparAcciones` tras cada redibujado, así que cubre todas las pestañas (también las cargadas de forma perezosa) sin tocar los 50 archivos de `modules/renders`. **Memoria:** la elección se guarda en `localStorage['notasOcultas']` con la clave `s-<pestaña>|<título>`; por defecto todas las notas se ven, y si el navegador no deja guardar el botón igual funciona hasta que se redibuje. **Límite:** solo cubre la línea de nota bajo el título; los recuadros explicativos largos dentro de una pantalla (p. ej. «Plan de reposición» en Stock) no llevan este botón. Prueba: `tests/e2e/notas-plegables.spec.js`.
+
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

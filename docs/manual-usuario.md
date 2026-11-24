@@ -115,6 +115,12 @@ No para seguir viendo y editando datos: el sistema guarda de inmediato en
 este computador aunque se corte la conexión, y sincroniza solo con la nube
 cuando vuelve.
 
+**¿Puedo esconder la nota que aparece bajo el título de cada pestaña?**
+Sí. Al lado del título de cada pestaña (y de cada sub-pestaña) hay un botón
+**ⓘ**: un clic oculta la nota o comentario de debajo y otro clic la vuelve a
+mostrar. Lo que dejes oculto se recuerda en ese navegador, pestaña por pestaña;
+si no tocas nada, todas las notas se ven como siempre.
+
 **¿Puedo mandar un enlace que abra el sistema directo en una pestaña?**
 Sí. En cualquier pestaña, el botón **Enlace** (arriba a la derecha, junto a
 Excel y CSV) copia la dirección de esa pantalla; en **Ayuda** hay además una
