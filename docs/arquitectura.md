@@ -7615,6 +7615,13 @@ El usuario señaló que el Dashboard repetía la salud y el PM en dos lugares.
 - **Salud:** «Mapa de Salud de la Flota» y «Equipos con Salud Baja» eran dos bloques seguidos con los mismos equipos. Ahora hay uno solo: la lista de los equipos con Score < 70 (con tendencia 7 días y desglose) pasó a un desplegable cerrado dentro del Mapa de Salud (`dash.js`, marcador `<!--SALUD_BAJA-->`).
 - **PM:** «Próximos PMs» mostraba los equipos con PM entre 1 y 14 días, y «Equipos Urgentes» ya incluye a los de 7 días o menos (`C.estado`: urgente ≤ 7 días), así que los de 1 a 7 días salían en las dos listas. «Próximos PMs» ahora muestra solo de 8 a 14 días.
 - No se tocó ningún cálculo; la barra superior (Urgentes/Próximas/Al día) es global y sigue igual. Prueba e2e: `dash-sin-repetidos.spec.js`.
+### 258. Pronóstico de PM medido contra lo ocurrido y ritmo de uso por mediana (2026-11-24)
+
+El usuario preguntó si el sistema es realmente predictivo. En vez de afirmarlo se midió: para 217 pares de PM seguidos de 29 equipos (desde sept-2025, segundo PM a ±25 % de su hito) se predijo la fecha del segundo con lo que se sabía el día del primero y se comparó con la real.
+- **Hallazgo:** el ritmo con que el sistema proyectaba (`tasaDiariaReal`: tramos más recientes hasta cubrir 5 días) se equivocaba **28,8 días** en promedio y atrasaba 14,5; el ritmo declarado (`hrsDia`) 9,7 días. Una ventana corta cae en una detención o un fin de semana y deja un PM «lejano» cuando toca pronto. Peores tipos: camiones, motoniveladoras y camión aljibe (equipos de uso irregular).
+- **Cambio:** `tasaDiariaReal` usa la **mediana de los tramos de los últimos 60 días** si hay al menos 3 tramos válidos; con menos conserva el método anterior (caso BD-9509 de historial disperso). Verificado con datos reales con esta misma regla: error medio **9,7 días**, típico 4, **75 % a ±7 días** y 88 % a ±14; 13 de 217 casos con más de 30 días de error.
+- **Medición permanente:** `backtestPronosticoPM` (`logic.js`, `tests/backtestPronosticoPM.test.js`) repite la prueba en el sistema; Programa Anual muestra «Qué tan bien acierta este pronóstico» y los equipos poco confiables (error medio > 14 días). Un PM atrasado por falta de personal o repuestos cuenta como error del pronóstico.
+- **Alcance:** cambia las fechas de todos los PM proyectados (Dashboard, alertas, Programa Anual, Gantt, Qué comprar). La prueba usa mi réplica en SQL del cálculo, la regla final se verificó con SQL y la función de la app quedó probada con pruebas unitarias; no se comparó la función de la app contra los 217 pares reales uno a uno.
 ## Lo que decidimos NO hacer (y por qué)
 
 - **No backend propio**: agregar un servidor Node/Express entre el

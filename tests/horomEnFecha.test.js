@@ -138,9 +138,23 @@ describe('tope físico del ritmo diario (un horómetro no avanza más de 24 h po
     { fecha: '2026-11-04', horom: 15172 }, { fecha: '2026-11-05', horom: 15190 }, { fecha: '2026-11-06', horom: 15219 },
     { fecha: '2026-11-07', horom: 15243 }, { fecha: '2026-11-08', horom: 15268 }, { fecha: '2026-11-09', horom: 15292 }, { fecha: '2026-11-10', horom: 15316 },
   ];
-  it('sin tope la ventana de 5 días da más de 24 h/día; con tope queda en 24', () => {
-    expect(L2.tasaDiariaReal(lecturas, 12)).toBeGreaterThan(24);
+  it('con la mediana de 60 días, la lectura de 29 h de un día ya no infla el ritmo del generador: queda en 24', () => {
+    expect(L2.tasaDiariaReal(lecturas, 12)).toBe(24);
     expect(L2.tasaDiariaReal(lecturas, 12, 24)).toBe(24);
+  });
+  it('un ritmo medido por encima de 24 h/día sin tope se informa tal cual y con tope queda en 24', () => {
+    const rapido = [0, 1, 2, 3, 4, 5].map(i => ({ fecha: '2026-11-0' + (i + 1), horom: 15000 + i * 26 }));
+    expect(L2.tasaDiariaReal(rapido, 12)).toBe(26);
+    expect(L2.tasaDiariaReal(rapido, 12, 24)).toBe(24);
+  });
+  it('una detención larga reciente no arrastra el ritmo: con varios tramos manda la mediana de 60 días', () => {
+    // 8 días a 10 h/día y luego 3 días parado (0 de avance se descarta) y un tramo flojo de 2 h/día
+    const l = [
+      { fecha: '2026-11-01', horom: 1000 }, { fecha: '2026-11-02', horom: 1010 }, { fecha: '2026-11-03', horom: 1020 }, { fecha: '2026-11-04', horom: 1030 },
+      { fecha: '2026-11-05', horom: 1040 }, { fecha: '2026-11-06', horom: 1050 }, { fecha: '2026-11-07', horom: 1060 }, { fecha: '2026-11-08', horom: 1070 },
+      { fecha: '2026-11-09', horom: 1072 },
+    ];
+    expect(L2.tasaDiariaReal(l, 12)).toBe(10);            // el método de los últimos 5 días daba ~8
   });
   it('un ritmo normal no se toca', () => {
     const l = [{ fecha: '2026-11-01', horom: 100 }, { fecha: '2026-11-11', horom: 250 }];

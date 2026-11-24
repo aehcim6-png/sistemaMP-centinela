@@ -71,6 +71,14 @@ export function renderPrg() {
   // El plan guardado solo se usa para decir qué decía un mes pasado que no tiene registro. Ver programaAnualVivo en logic.js.
   var reg = S.g('reg') || [];
   _prgVivo = programaAnualVivo(eq, reg, S.g('prg') || [], new Date(), anioPrg, function (s, h) { return _ritmoRealEq(s, h); });
+  // Precisión del pronóstico (24-nov-2026): cuántos días se equivocó el sistema en los PM ya ejecutados. Ver backtestPronosticoPM (logic.js).
+  var _bt = backtestPronosticoPM(reg, S.g('hist') || [], eq);
+  var _btHtml = '';
+  if (_bt.pares >= 10) {
+    _btHtml = '<div style="font-size:11px;color:var(--tx2);margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--bg3)">📈 <b>Qué tan bien acierta este pronóstico:</b> en ' + _bt.pares + ' PM ya ejecutados de ' + _bt.equipos + ' equipos (desde sept-2025), la fecha se predijo a ±7 días el <b>' + _bt.pct7 + ' %</b> de las veces y a ±14 días el <b>' + _bt.pct14 + ' %</b>; error típico ' + _bt.mediana + ' días, medio ' + _bt.mae + ' (' + (_bt.sesgo < -1 ? 'tiende a adelantar ' + Math.abs(_bt.sesgo) + ' días' : _bt.sesgo > 1 ? 'tiende a atrasar ' + _bt.sesgo + ' días' : 'sin sesgo') + ').' +
+      (_bt.peores.length ? ' <b style="color:var(--warn)">Poco confiables</b> (error medio de más de 14 días): ' + _bt.peores.map(function (q) { return escapeHtml(q.sigla) + ' (' + q.mae + ' d)'; }).join(' · ') + '.' : '') +
+      '<div style="color:var(--tx3);margin-top:3px">Un PM que se atrasó por falta de personal o repuestos cuenta como error del pronóstico. Solo entran los PM hechos cerca de su hito.</div></div>';
+  }
   var hayEjecAnio = _prgVivo.some(function (p) { return MS.some(function (m) { return p.meses[m].eje.length; }); });
   var nSinReg = 0, nVenc = 0, avisos = [];
   _prgVivo.forEach(function (p) {
@@ -121,6 +129,7 @@ export function renderPrg() {
     }).join('') +
     '</div>' +
     (avisos.length ? '<div style="font-size:11px;color:var(--tx3);margin-top:10px"><b style="color:var(--warn)">⚠ Equipos sin proyección confiable</b> (no se inventa un mes): ' + avisos.map(escapeHtml).join(' · ') + '</div>' : '') +
+    _btHtml +
     '<div style="font-size:11px;color:var(--tx3);margin-top:8px">Un PM se hace por horas o km, no por calendario: el mes proyectado se corre solo cuando se registra un PM o cambia el ritmo del equipo. <b>Toca una celda sin ejecutar para ajustarla a mano</b> (cada toque pasa a PM1 → PM2 → PM3 → PM4 → sin PM → automático); lo ajustado manda sobre el cálculo, se guarda y lo usan Gantt y Qué comprar. Las celdas ejecutadas salen de Registro PM.</div>';
 }
 // Ajuste a mano de una celda (23-nov-2026): el programa se calcula solo, pero el planificador puede fijar el PM de un mes. Se guarda en el plan guardado (meses._manual, clave 'aaaa-mm') y manda sobre el cálculo.

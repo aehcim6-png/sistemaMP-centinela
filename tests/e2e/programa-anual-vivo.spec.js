@@ -110,3 +110,33 @@ test('Programa Anual: una celda se ajusta a mano, se guarda y se conserva al rec
   expect(r.pmFijado).toContain('PM2 ✎');
   expect(r.despuesRecalcular).toContain('PM2 ✎');
 });
+
+// Precisión del pronóstico (24-nov-2026): con suficientes PM ya ejecutados, el Programa Anual dice cuántos días se equivocó el sistema.
+test('Programa Anual muestra qué tan bien acierta el pronóstico de PM con los PM ya ejecutados', async ({ page }) => {
+  test.setTimeout(120000);
+  await mockSupabase(page, { loginOk: true, role: 'admin', nombre: 'Admin Test' });
+  await page.goto('/');
+  await page.waitForFunction(() => !!window._turnstileToken);
+  await page.locator('#li_email').fill('admin@test.com');
+  await page.locator('#li_pass').fill('claveCorrecta123');
+  await expect(page.locator('#li_pass')).toHaveValue('claveCorrecta123', { timeout: 15000 });
+  await page.locator('#li_btn').click();
+  await expect(page.locator('#s-dash')).toHaveCount(1, { timeout: 15000 });
+  await page.waitForTimeout(3000);
+  const t = await page.evaluate(async () => {
+    const esp = (ms) => new Promise((x) => setTimeout(x, ms));
+    const dia = (n) => new Date(Date.UTC(2026, 0, 1 + n)).toISOString().slice(0, 10);
+    const sembrar = () => {
+      S.s('eq', [{ sigla: 'BT-1', tipo: 'Camión', modelo: 'M', frecPM: 250, hrsDia: 10, horomActual: 4000, horomProxPM: 4250, fechaProxPM: dia(300), fechaHorom: dia(299) }]);
+      S.s('prg', [{ _id: 'g1', sigla: 'BT-1', meses: {} }]);
+      S.s('hist', Array.from({ length: 290 }, (_, i) => ({ sigla: 'BT-1', fecha: dia(i), horom: 1000 + i * 10, horomFin: 1000 + i * 10 })));
+      // un PM cada 25 días a las 250, 500, 750… h: el pronóstico acierta
+      S.s('reg', Array.from({ length: 12 }, (_, k) => ({ _id: 'r' + k, equipo: 'BT-1', tipoPM: 'PM1', fechaEntrada: dia(20 + k * 25 + 5 - 5), horomReal: 1250 + k * 250 })));
+    };
+    sembrar(); go('dash'); await esp(1200); go('plani'); await esp(800); window.planiSub('prg');
+    for (let k = 0; k < 50; k++) { sembrar(); window.renderPrg(); const x = (document.getElementById('s-prg') || {}).innerText || ''; if (/BT-1/.test(x)) return x; await esp(100); }
+    return '';
+  });
+  expect(t).toContain('Qué tan bien acierta este pronóstico');
+  expect(t).toContain('±7 días');
+});

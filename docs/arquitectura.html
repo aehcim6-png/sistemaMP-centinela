@@ -4018,6 +4018,15 @@ deno run --allow-net --allow-env --allow-read scripts/restaurar-backup.ts \
     <li>No se tocó ningún cálculo; la barra superior (Urgentes/Próximas/Al día) es global y sigue igual.</li>
   </ul>
 
+  <h3 id="d-258">258. Pronóstico de PM medido contra lo ocurrido y ritmo de uso por mediana (2026-11-24)</h3>
+  <p>Ante la pregunta de si el sistema es realmente predictivo, se midió: 217 pares de PM seguidos de 29 equipos (desde sept-2025, segundo PM a ±25 % de su hito); se predijo la fecha del segundo con lo que se sabía el día del primero y se comparó con la real.</p>
+  <ul>
+    <li><b>Hallazgo</b>: el ritmo con que se proyectaba (tramos más recientes hasta cubrir 5 días) se equivocaba <b>28,8 días</b> en promedio y atrasaba 14,5; el ritmo declarado, 9,7 días. Una ventana corta cae en una detención o un fin de semana. Peores tipos: camiones, motoniveladoras y camión aljibe.</li>
+    <li><b>Cambio</b>: <code>tasaDiariaReal</code> usa la <b>mediana de los tramos de los últimos 60 días</b> si hay al menos 3 tramos válidos; con menos conserva el método anterior. Con datos reales: error medio <b>9,7 días</b>, típico 4, <b>75 % a ±7 días</b> y 88 % a ±14.</li>
+    <li><b>Medición permanente</b>: <code>backtestPronosticoPM</code> repite la prueba; Programa Anual muestra «Qué tan bien acierta este pronóstico» y los equipos poco confiables (error medio &gt; 14 días).</li>
+    <li><b>Alcance y límites</b>: cambia las fechas de todos los PM proyectados. Un PM atrasado por falta de personal o repuestos cuenta como error. La medición con datos reales se hizo con una réplica en SQL del cálculo; la función de la app quedó probada con pruebas unitarias.</li>
+  </ul>
+
 <h2 id="d-189">Lo que decidimos NO hacer (y por qué)</h2>
   <ul>
     <li><b>No backend propio</b>: solo se justifica si aparece una razón concreta (una regla de
