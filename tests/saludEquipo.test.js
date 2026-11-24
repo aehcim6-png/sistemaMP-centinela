@@ -114,3 +114,52 @@ describe('reglas de medición del Score de Salud (24-nov-2026)', () => {
     expect(claseOTDesdeTexto('Cañería dañada')).toBe('correctiva');
   });
 });
+
+describe('matriz de salud propuesta (24-nov-2026)', () => {
+  const { scoreSaludMatriz, saludHistorialPct, SALUD_MATRIZ_PROPUESTA } = require('../logic.js');
+  it('los pesos de las categorías suman 100 y los de los subsistemas también', () => {
+    expect(Object.values(SALUD_MATRIZ_PROPUESTA.pesos).reduce((a, b) => a + b, 0)).toBe(100);
+    expect(Object.values(SALUD_MATRIZ_PROPUESTA.subsistemas).reduce((a, b) => a + b, 0)).toBe(100);
+  });
+  it('promedia ponderado por categoría y muestra la confianza del dato', () => {
+    const r = scoreSaludMatriz({ condicion: 80, historial: 60, preventivo: 100 });
+    expect(r.valor).toBe(Math.round((80 * 30 + 60 * 55 + 100 * 15) / 100 * 10) / 10);   // 72,0
+    expect(r.confianza).toBe(100);                       // telemetría pesa 0: no cuenta como faltante
+    expect(r.banda).toBe('advertencia');
+  });
+  it('sin una categoría, su peso se reparte entre las que sí tienen dato y baja la confianza', () => {
+    const r = scoreSaludMatriz({ historial: 60, preventivo: 100 });
+    expect(r.valor).toBe(Math.round((60 * 55 + 100 * 15) / 70 * 10) / 10);
+    expect(r.confianza).toBe(70);
+  });
+  it('con menos de 2 categorías con dato queda sin nota (insuficiente), no crítico', () => {
+    const r = scoreSaludMatriz({ historial: 0 });
+    expect(r.valor).toBeNull();
+    expect(r.insuficiente).toBe(true);
+    expect(r.banda).toBe('sin_datos');
+  });
+  it('la capa B pondera los subsistemas dentro de «condición» y reparte el peso del que falta', () => {
+    const r = scoreSaludMatriz({ condicion: { tren: 40, hidraulico: 100 }, historial: 100 });
+    // condición = (40*55 + 100*30) / 85 = 61,2 ; total = (61,2*30 + 100*55) / 85
+    expect(r.categorias.find(c => c.nombre === 'condicion').valor).toBe(61.2);
+    expect(r.valor).toBe(Math.round((61.2 * 30 + 100 * 55) / 85 * 10) / 10);
+  });
+  it('un crítico (veto) limita el Score a 39 aunque el promedio sea sano, y lo dice', () => {
+    const r = scoreSaludMatriz({ condicion: 100, historial: 100, preventivo: 100, criticos: ['aceite en alerta: MOTOR'] });
+    expect(r.valor).toBe(39);
+    expect(r.banda).toBe('critica');
+    expect(r.veto).toMatchObject({ antes: 100, motivos: ['aceite en alerta: MOTOR'] });
+  });
+  it('un crítico también marca a un equipo con pocos datos (no queda «sin datos»)', () => {
+    expect(scoreSaludMatriz({ historial: 100, criticos: ['componente vencido'] }).valor).toBe(39);
+  });
+  it('historial: las bandas siguen las tasas observadas (fallas previas y paradas largas)', () => {
+    expect(saludHistorialPct(0, 0)).toBe(100);
+    expect(saludHistorialPct(2, 0)).toBe(75);
+    expect(saludHistorialPct(4, 0)).toBe(40);
+    expect(saludHistorialPct(9, 0)).toBe(0);
+    expect(saludHistorialPct(0, 1)).toBe(60);
+    expect(saludHistorialPct(0, 3)).toBe(20);
+    expect(saludHistorialPct(null, null)).toBeNull();
+  });
+});

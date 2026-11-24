@@ -76,3 +76,55 @@ Qué se puede sostener y qué no:
 
 - Aprobar el diseño de la sección 4 (en particular la nueva Confiabilidad) y los plazos de validación.
 - Decidir si se publica antes el cambio del 24-nov (aceite, mínimo de señales y clasificación de OT) o se espera a la tabla antes/después de toda la flota.
+
+## 6. Matriz propuesta (para que la ajuste y firme quien responde por la confiabilidad)
+
+Está en el código como `SALUD_MATRIZ_PROPUESTA` y `scoreSaludMatriz` (`logic.js`), con pruebas, pero **no está conectada** al Score que ven los usuarios. Los pesos son un punto de partida, no una norma.
+
+**Capa A: categorías de dato** (los pesos se reparten solo entre las que tienen dato; la confianza dice qué parte del peso tenía dato)
+
+| Categoría | Marco aportado (rango típico, sin verificar) | Lo medido en nuestros datos (sección 7) | Propuesta |
+|---|---|---|---|
+| Monitoreo de condición (aceite, vida de componentes, neumáticos, TBO) | 40–50 % | El aceite, tal como se mide hoy, **no separa** equipos que fallan de los que no. Solo 12 equipos tienen muestras recientes. | **30 %** |
+| Telemetría y alertas | 20–30 % | No entra ningún dato de telemetría al sistema. | **0 %** (se reparte; se muestra como «sin dato») |
+| Historial de fallas (fallas de 90 días, paradas de 24 h o más de 12 meses) | 15–20 % | **Es lo que mejor separa**, y se mantiene en el período reciente. | **55 %** |
+| Cumplimiento preventivo y edad | 10–15 % | El atraso de PM **no** predice fallas en estos datos. | **15 %** (por cumplimiento y seguridad, no por predicción) |
+
+La propuesta se aparta del marco aportado (condición 30 % en vez de 40–50 %, historial 55 % en vez de 15–20 %) **porque lo medido no respalda darle ese peso al aceite**. Es una decisión de quien firma la matriz: si se mantiene el marco, hay que mejorar antes la señal de aceite (más equipos muestreados, criterio de asentamiento para equipos nuevos).
+
+**Capa B: subsistemas dentro de «condición»** (ejemplo del marco aportado, adaptado a lo que se mide): tren de potencia (motor, transmisión, diferencial, mandos finales) 55 %, hidráulico y dirección 30 %, neumáticos y otros 15 %. Estructura y eléctrico no se miden hoy.
+
+**Regla de veto:** una señal crítica fuerza el Score a **39 o menos**, con el motivo a la vista. Candidatas (a decidir): aceite en alerta en motor, transmisión o mandos finales dentro de los últimos 90 días; componente mayor vencido; parada activa de 24 h o más. Hoy ninguna está conectada.
+
+**Subpuntaje de historial** (`saludHistorialPct`): 100 menos la mayor penalización entre las fallas de 90 días (0 → 0; 1–2 → 25; 3–5 → 60; 6 o más → 100) y las paradas de 24 h o más de 12 meses (0 → 0; 1 → 40; 2 o más → 80). Las bandas salen de las tasas observadas.
+
+Reglas ya definidas: menos de 2 categorías con dato → «sin datos suficientes»; bandas 55 y 80 (a calibrar).
+
+## 7. Resultados de la validación (24-nov-2026)
+
+**Cómo:** `scripts/validar_score_salud.sql` (solo lectura, reproducible). Para cada equipo y cada 14 días desde el 1-oct-2025 hasta el 15-oct-2026 (825 observaciones) se calculan las señales con lo que se sabía ese día y se mira si hubo una falla en los 30 días siguientes o una parada de 24 h o más en los 60 días siguientes. Se separó el tiempo: antes y desde abril de 2026.
+
+**Tasas base:** hubo una falla en los 30 días siguientes en el 49,7 % de las observaciones, y una parada de 24 h o más en los 60 días siguientes en el 28,6 %.
+
+| Señal | Grupo | Falla en 30 días (antes → reciente) | Parada ≥24 h en 60 días (antes → reciente) |
+|---|---|---|---|
+| Fallas de los 90 días previos | 0 | 21 % → 15 % | 7 % → 12 % |
+| | 1–2 | 38 % → 25 % | 13 % → 13 % |
+| | 3–5 | 58 % → 56 % | 12 % → 29 % |
+| | 6 o más | 92 % → 78 % | 50 % → 58 % |
+| Paradas ≥24 h de los 12 meses previos | 0 | 29 % → 18 % | 11 % → 11 % |
+| | 1 | 69 % → 42 % | 26 % → 26 % |
+| | 2 o más | 86 % → 71 % | 41 % → 52 % |
+| Aceite (90 días) | malo | 79 % → 51 % | 48 % → 34 % |
+| | medio | 94 % → 81 % | 54 % → 55 % |
+| | normal | 56 % → 72 % | 39 % → 58 % |
+| | sin muestra | 42 % → 28 % | 10 % → 19 % |
+| PM atrasado (días desde el último PM ÷ intervalo esperado) | al día | 58 % → 54 % | 28 % → 37 % |
+| | muy atrasado (más de 2) | 49 % → 37 % | 18 % → 29 % |
+
+**Conclusiones**
+1. **Fallas y paradas previas predicen** y la relación se mantiene en el período reciente: los equipos con 6 o más fallas en 90 días vuelven a fallar en 30 días 78–92 % de las veces, contra 15–21 % de los que no tuvieron ninguna.
+2. **El aceite, tal como se mide, no predice**: el grupo «normal» falla igual o más que el «malo», y el grupo «sin muestra» falla menos solo porque no se muestrean los equipos de uso liviano.
+3. **El atraso de PM no predice** en estos datos (los equipos más atrasados no fallan más).
+4. **Límites:** son correlaciones sin controlar por tipo de equipo, edad ni horas de uso, y los equipos que más fallan son siempre los mismos, así que «tuvo fallas» también significa «es un equipo exigido». Solo hay unas 45 paradas de 24 h o más con duración registrada (desde enero de 2025), así que las tasas de parada tienen mucha incertidumbre. La validación del Score completo (con componentes, neumáticos y TBO) no se pudo reconstruir hacia atrás: se hará con las fotos diarias nuevas a partir del 25-nov-2026, en 60 a 90 días.
+5. **Pendiente de evaluar** (no incluido): vida remanente de componentes, neumáticos, TBO y el efecto de aislar por tipo de equipo.
